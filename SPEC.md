@@ -8,7 +8,12 @@ This document is written by a human and is the source of truth for AI agents so 
 
 The hardware used is [M5Stacks](https://m5stack.com/), this allows us people to create the device without any hardware knowledge.
 
-Specifically
+Specifically we are using the following modules.
+
+* [M5Stack CoreS3 ESP32S3](https://shop.m5stack.com/products/m5stack-cores3-esp32s3-iotdevelopment-kit?srsltid=AfmBOor91B72K9dsifvTqBSTwQAZz7Worq9cJUJ7sw2065vTjUKRdZkM)
+* [M5GO Battery Bottom3 (for CoreS3 only)](https://shop.m5stack.com/products/m5go-battery-bottom3-for-cores3-only?srsltid=AfmBOoo9umRlyYjDaAOf5KuTXiz9eLAItGLq1fkmgax-Rf8muDDokVeJ)
+* [USB Module with MAX3421E v1.2](https://shop.m5stack.com/products/usb-module-with-max3421e-v1-2?srsltid=AfmBOopdCs196hpYWsUVITGv8l6V6T0btyp5yZUZ5_MbPM_D3WVY4ceW&variant=44512358793473)
+* [M5Stack Audio Module (STM32G030)](https://shop.m5stack.com/products/m5stack-audio-module-es8388?srsltid=AfmBOopEP9SpWVf2BRjI0aIFe-F486eIQmofqVBIjPntzBHPF00S2h-M&variant=46249349349633)
 
 ## Features
 
