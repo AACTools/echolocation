@@ -31,6 +31,10 @@ It should work with any keyboard layout.
 
 If the audio is playing and you press a new key it should stop the current audio and start playing the new audio.
 
+A keyboard and a computer can be connected at the same time. Every keypress is spoken; only keys held for the configured duration are sent to the computer.
+
+Settings are saved and persist across reboot.
+
 ### Screen
 
 On the CoreS3 screen it should show the current key that is being pressed. It should also have a battery level indicator. There should also be a settings button that opens a menu with the following configurable options:
