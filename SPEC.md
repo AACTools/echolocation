@@ -19,11 +19,17 @@ Specifically we are using the following modules.
 
 You can connect a keyboard to the device, via bluetooth or usb. As soon as the keyboard is connected to the device it should start reading aloud every key that is pressed.
 
-You can also connect a computer to the device, via usb or bluetooth. As soon as the computer is connected to the device it should start sending keypresses to the device when the user holds down a key (for the specified duration).
+You can also connect a computer to the device, via usb or bluetooth. As soon as the computer is connected to the device it should start sending keypresses to the device when the user holds down a key (for the specified duration). It should simulate a normal keyboard keypress.
+
+For each time the user holds the key down it should only send a single keypress to the computer.
+
+The behaviour should be the same for modifier keys.
 
 You should be able to seamlessly switch between different keyboards and computers.
 
 It should work with any keyboard layout.
+
+If the audio is playing and you press a new key it should stop the current audio and start playing the new audio.
 
 ### Screen
 
@@ -34,6 +40,9 @@ On the CoreS3 screen it should show the current key that is being pressed. It sh
   - Configure Keyboard Connection
   - Configure Computer Connection
 - Hold duration
+- Factory reset
+
+The screen should also report any errors that occur in a clear and easy to understand way.
 
 ### Text to speech
 
