@@ -17,6 +17,12 @@ Specifically we are using the following modules.
 
 ## Features
 
+### Text to speech
+
+### Audio
+
+By default the audio should come out of the built in speaker. If you plug in a speaker it should seemlessly switch to the speaker and when you unplug it should switch back
+
 ## Coding standards
 
 Code should be kept as simple as possible and variables and functions should have names that very clear explain what they are from.
