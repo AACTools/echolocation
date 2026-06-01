@@ -1,0 +1,12 @@
+name: Setup PlatformIO
+description: Install Python and PlatformIO for firmware CI
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - name: Install PlatformIO
+      shell: bash
+      run: pip install platformio
