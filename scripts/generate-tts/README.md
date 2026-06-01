@@ -15,7 +15,9 @@ cd scripts/generate-tts
 npm run voices          # list available macOS voices
 npm run generate        # generate WAV files into sd-card/
 npm run generate -- --voice Alex --rate 170
-npm run generate -- --force   # regenerate existing files
+npm run generate -- --force   # regenerate existing files (needed after voice/TTS fixes)
 ```
+
+Single letters and digits use macOS `[[char U+....]]` notation so `say` pronounces "A" instead of "Capital A". Optional per-entry `"speak"` in the manifest overrides that text.
 
 Copy the generated `sd-card/` folder contents to the root of a FAT32 microSD card, then insert the card into the CoreS3.

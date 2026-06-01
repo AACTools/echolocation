@@ -43,10 +43,29 @@ function usageToFilename(usageHex) {
   return `u${value.toString(16).padStart(3, "0")}.wav`;
 }
 
-function runSay(label, voice, rate, aiffPath) {
+/** Text passed to macOS `say` (avoids e.g. "Capital A" for label "A"). */
+function speakTextForEntry(entry) {
+  if (entry.speak) {
+    return entry.speak;
+  }
+  const { label } = entry;
+  if (label.length === 1) {
+    const code = label.toUpperCase().charCodeAt(0);
+    if (
+      (code >= 0x41 && code <= 0x5a) ||
+      (code >= 0x30 && code <= 0x39)
+    ) {
+      return `[[char U+${code.toString(16).padStart(4, "0").toUpperCase()}]]`;
+    }
+  }
+  return label;
+}
+
+function runSay(entry, voice, rate, aiffPath) {
+  const text = speakTextForEntry(entry);
   spawnSync(
     "say",
-    ["-v", voice, "-r", String(rate), "-o", aiffPath, label],
+    ["-v", voice, "-r", String(rate), "-o", aiffPath, text],
     { stdio: "inherit" }
   );
 }
@@ -95,7 +114,7 @@ function main() {
 
     const aiffPath = path.join(tmpDir, `${filename}.aiff`);
     console.log(`Generating ${entry.label} -> ${filename}`);
-    runSay(entry.label, args.voice, args.rate, aiffPath);
+    runSay(entry, args.voice, args.rate, aiffPath);
     convertToWav(aiffPath, wavPath);
     fs.unlinkSync(aiffPath);
     created += 1;
