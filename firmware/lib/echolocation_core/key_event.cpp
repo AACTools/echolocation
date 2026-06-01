@@ -49,6 +49,32 @@ const char* keyLabelForUsage(uint8_t hid_usage) {
       return "Tab";
     case 0x2C:
       return "Space";
+    case 0x2D:
+      return "Minus";
+    case 0x2E:
+      return "Equals";
+    case 0x2F:
+      return "Left Bracket";
+    case 0x30:
+      return "Right Bracket";
+    case 0x31:
+      return "Backslash";
+    case 0x32:
+      return "Hash";
+    case 0x33:
+      return "Semicolon";
+    case 0x34:
+      return "Apostrophe";
+    case 0x35:
+      return "Grave";
+    case 0x36:
+      return "Comma";
+    case 0x37:
+      return "Period";
+    case 0x38:
+      return "Slash";
+    case 0x39:
+      return "Caps Lock";
     case 0x3A:
       return "F1";
     case 0x3B:
@@ -73,6 +99,24 @@ const char* keyLabelForUsage(uint8_t hid_usage) {
       return "F11";
     case 0x45:
       return "F12";
+    case 0x46:
+      return "Print Screen";
+    case 0x47:
+      return "Scroll Lock";
+    case 0x48:
+      return "Pause";
+    case 0x49:
+      return "Insert";
+    case 0x4A:
+      return "Home";
+    case 0x4B:
+      return "Page Up";
+    case 0x4C:
+      return "Delete";
+    case 0x4D:
+      return "End";
+    case 0x4E:
+      return "Page Down";
     case 0x4F:
       return "Right Arrow";
     case 0x50:
@@ -115,6 +159,38 @@ const char* keyLabelForUsage(uint8_t hid_usage) {
       return "Keypad 0";
     case 0x63:
       return "Keypad Period";
+    case 0x64:
+      return "Keypad Equals";
+    case 0x65:
+      return "Menu";
+    case 0x66:
+      return "Power";
+    case 0x67:
+      return "Keypad Comma";
+    case 0x68:
+      return "Intl Backslash";
+    case 0x69:
+      return "Intl Ro";
+    case 0x6A:
+      return "Katakana";
+    case 0x6B:
+      return "Hiragana";
+    case 0x6C:
+      return "Intl Yen";
+    case 0x6D:
+      return "Henkan";
+    case 0x6E:
+      return "Muhenkan";
+    case 0x6F:
+      return "Intl 6";
+    case 0x70:
+      return "Intl 7";
+    case 0x71:
+      return "Intl 8";
+    case 0x72:
+      return "Intl 9";
+    case 0x73:
+      return "Hangul";
     default:
       break;
   }
