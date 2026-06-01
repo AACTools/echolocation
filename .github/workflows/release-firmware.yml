@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build-firmware:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,6 +51,55 @@ jobs:
           EOF
           (cd dist && zip -r "../echolocation-cores3-${TAG}.zip" "echolocation-cores3-${TAG}")
 
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-release
+          path: |
+            dist/echolocation-cores3-${{ inputs.tag }}.zip
+            firmware/.pio/build/m5stack-cores3/firmware.bin
+
+  generate-audio:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Generate microSD speech files
+        working-directory: scripts/generate-tts
+        run: npm install && npm run generate
+
+      - name: Package microSD audio
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          DIST=dist/echolocation-sd-audio-${TAG}
+          mkdir -p "$DIST/audio/keys"
+          cp sd-card/audio/keys/*.wav "$DIST/audio/keys/"
+          cat > "$DIST/SD_CARD.txt" << 'EOF'
+          Copy the contents of this folder to the root of a FAT32 microSD card.
+          The card should contain /audio/keys/*.wav (same layout as this archive).
+          Insert the card into the CoreS3 SD slot before use.
+          EOF
+          (cd dist && zip -r "../echolocation-sd-audio-${TAG}.zip" "echolocation-sd-audio-${TAG}")
+
+      - name: Upload audio artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sd-audio
+          path: dist/echolocation-sd-audio-${{ inputs.tag }}.zip
+
+  release:
+    needs: [build-firmware, generate-audio]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
@@ -59,7 +108,8 @@ jobs:
           prerelease: ${{ inputs.prerelease }}
           generate_release_notes: true
           files: |
-            dist/echolocation-cores3-${{ inputs.tag }}.zip
-            firmware/.pio/build/m5stack-cores3/firmware.bin
+            artifacts/firmware-release/dist/echolocation-cores3-${{ inputs.tag }}.zip
+            artifacts/firmware-release/firmware/.pio/build/m5stack-cores3/firmware.bin
+            artifacts/sd-audio/dist/echolocation-sd-audio-${{ inputs.tag }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
