@@ -1,0 +1,8 @@
+.DS_Store
+sd-card/
+*.aiff
+.pio/
+.pio-tools/
+.vscode/.pio/
+node_modules/
+scripts/generate-tts/tmp/
