@@ -20,35 +20,48 @@ enum class UiScreen {
 class UiManager {
  public:
   void begin();
+  void tick();
+
   void setCurrentKeyLabel(const char* label);
   void setBatteryPercent(int battery_percent);
   void setErrorMessage(const char* message);
   void clearError();
-  void draw();
-  void handleTouch();
 
   UiScreen currentScreen() const;
   bool settingsChanged() const;
   DeviceSettings& editingSettings();
   void acknowledgeSettingsSaved();
+  void refreshSettingsWidgets();
+
+  bool bleScanRequested() const;
+  void clearBleScanRequested();
+
+  bool factoryResetConfirmed() const;
+  void clearFactoryResetConfirmed();
+
+  void navigateTo(UiScreen screen);
+  void applyVolumePercent(uint8_t volume_percent);
+  void applyHoldDurationMs(uint32_t hold_duration_ms);
+  void triggerBleScan();
+  void triggerFactoryResetConfirm();
 
  private:
-  void drawMain();
-  void drawSettings();
-  void drawVolume();
-  void drawBluetoothMenu();
-  void drawBleKeyboard();
-  void drawBleComputer();
-  void drawHoldDuration();
-  void drawFactoryReset();
-  bool touchInRect(int x, int y, int w, int h, int touch_x, int touch_y) const;
+#ifndef NATIVE_TEST
+  void buildScreens();
+  void refreshMainLabels();
+  void refreshVolumeUi();
+  void refreshHoldUi();
+  void refreshBleComputerUi();
+#endif
 
   UiScreen screen_ = UiScreen::kMain;
-  std::string current_key_label_ = "";
-  std::string error_message_ = "";
+  std::string current_key_label_;
+  std::string error_message_;
   int battery_percent_ = -1;
   DeviceSettings editing_settings_{};
   bool settings_changed_ = false;
+  bool ble_scan_requested_ = false;
+  bool factory_reset_confirmed_ = false;
 };
 
 }  // namespace echo
