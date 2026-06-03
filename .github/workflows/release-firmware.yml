@@ -49,12 +49,13 @@ jobs:
               0x8000 partitions.bin \
               0x10000 firmware.bin
           EOF
-          (cd dist && zip -r "../echolocation-cores3-${TAG}.zip" "echolocation-cores3-${TAG}")
+          (cd dist && zip -r "echolocation-cores3-${TAG}.zip" "echolocation-cores3-${TAG}")
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
           name: firmware-release
+          if-no-files-found: error
           path: |
             dist/echolocation-cores3-${{ inputs.tag }}.zip
             firmware/.pio/build/m5stack-cores3/firmware.bin
@@ -84,12 +85,13 @@ jobs:
           The card should contain /audio/keys/*.wav (same layout as this archive).
           Insert the card into the CoreS3 SD slot before use.
           EOF
-          (cd dist && zip -r "../echolocation-sd-audio-${TAG}.zip" "echolocation-sd-audio-${TAG}")
+          (cd dist && zip -r "echolocation-sd-audio-${TAG}.zip" "echolocation-sd-audio-${TAG}")
 
       - name: Upload audio artifacts
         uses: actions/upload-artifact@v4
         with:
           name: sd-audio
+          if-no-files-found: error
           path: dist/echolocation-sd-audio-${{ inputs.tag }}.zip
 
   release:
@@ -100,6 +102,17 @@ jobs:
         with:
           path: artifacts
 
+      - name: Verify release assets
+        run: |
+          set -e
+          for f in \
+            "artifacts/firmware-release/dist/echolocation-cores3-${{ inputs.tag }}.zip" \
+            "artifacts/firmware-release/firmware/.pio/build/m5stack-cores3/firmware.bin" \
+            "artifacts/sd-audio/echolocation-sd-audio-${{ inputs.tag }}.zip"
+          do
+            test -f "$f" || { echo "Missing release asset: $f"; ls -R artifacts; exit 1; }
+          done
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
@@ -107,9 +120,10 @@ jobs:
           name: echolocation ${{ inputs.tag }}
           prerelease: ${{ inputs.prerelease }}
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
             artifacts/firmware-release/dist/echolocation-cores3-${{ inputs.tag }}.zip
             artifacts/firmware-release/firmware/.pio/build/m5stack-cores3/firmware.bin
-            artifacts/sd-audio/dist/echolocation-sd-audio-${{ inputs.tag }}.zip
+            artifacts/sd-audio/echolocation-sd-audio-${{ inputs.tag }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
