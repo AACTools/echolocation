@@ -48,6 +48,7 @@ void App::refreshUi() {
   int battery = M5.Power.getBatteryLevel();
   ui.setBatteryPercent(battery);
 #endif
+  ui.draw();
 }
 
 void App::applySettingsIfNeeded() {
@@ -73,7 +74,6 @@ void App::setup() {
   settings_store.load(settings);
   ui.begin();
   ui.editingSettings() = settings;
-  ui.refreshSettingsWidgets();
 
   speech.begin([&](const char* message) { ui.setErrorMessage(message); });
   speech.setVolumePercent(settings.volume_percent);
@@ -115,22 +115,30 @@ void App::loop() {
   speech.tick();
   hold_detector.tick(now);
 
-  ui.tick();
+  ui.handleTouch();
 
-  if (ui.bleScanRequested()) {
-    ble_keyboard.startScan();
-    ui.clearBleScanRequested();
+  if (ui.currentScreen() == UiScreen::kBleKeyboard) {
+#ifndef NATIVE_TEST
+    if (M5.Touch.getCount()) {
+      ble_keyboard.startScan();
+    }
+#endif
   }
 
-  if (ui.factoryResetConfirmed()) {
-    ui.clearFactoryResetConfirmed();
-    settings_store.factoryReset();
-    settings = defaultDeviceSettings();
-    ui.editingSettings() = settings;
-    hold_detector.setHoldDurationMs(settings.hold_duration_ms);
-    speech.setVolumePercent(settings.volume_percent);
-    hold_detector.reset();
-    ui.setErrorMessage("Factory reset complete");
+  if (ui.currentScreen() == UiScreen::kFactoryResetConfirm) {
+#ifndef NATIVE_TEST
+    if (M5.Touch.getCount()) {
+      auto touch = M5.Touch.getDetail(0);
+      if (touch.state == m5::touch_state_t::touch_begin && touch.x < 150 &&
+          touch.y > 110) {
+        settings_store.factoryReset();
+        settings = defaultDeviceSettings();
+        ui.editingSettings() = settings;
+        hold_detector.reset();
+        ui.setErrorMessage("Factory reset complete");
+      }
+    }
+#endif
   }
 
   applySettingsIfNeeded();
@@ -142,10 +150,10 @@ void App::loop() {
     ui.clearError();
   }
 
-  static uint32_t last_battery_ui = 0;
-  if (now - last_battery_ui > 1000) {
+  static uint32_t last_draw = 0;
+  if (now - last_draw > 100) {
     refreshUi();
-    last_battery_ui = now;
+    last_draw = now;
   }
 }
 
