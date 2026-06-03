@@ -43,29 +43,29 @@ function usageToFilename(usageHex) {
   return `u${value.toString(16).padStart(3, "0")}.wav`;
 }
 
-/** Text passed to macOS `say` (avoids e.g. "Capital A" for label "A"). */
+/**
+ * Text for macOS `say`. Single letters need a trailing "." so Samantha says
+ * "A" instead of "Capital A". Do not use [[char U+...]] — modern voices read
+ * that markup aloud.
+ */
 function speakTextForEntry(entry) {
   if (entry.speak) {
     return entry.speak;
   }
   const { label } = entry;
-  if (label.length === 1) {
-    const code = label.toUpperCase().charCodeAt(0);
-    if (
-      (code >= 0x41 && code <= 0x5a) ||
-      (code >= 0x30 && code <= 0x39)
-    ) {
-      return `[[char U+${code.toString(16).padStart(4, "0").toUpperCase()}]]`;
-    }
+  if (label.length === 1 && /[A-Za-z]/.test(label)) {
+    return `${label.toUpperCase()}.`;
   }
   return label;
 }
 
 function runSay(entry, voice, rate, aiffPath) {
   const text = speakTextForEntry(entry);
+  const textPath = path.join(tmpDir, "speak.txt");
+  fs.writeFileSync(textPath, text, "utf8");
   spawnSync(
     "say",
-    ["-v", voice, "-r", String(rate), "-o", aiffPath, text],
+    ["-v", voice, "-r", String(rate), "-o", aiffPath, "-f", textPath],
     { stdio: "inherit" }
   );
 }

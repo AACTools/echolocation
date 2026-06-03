@@ -18,6 +18,6 @@ npm run generate -- --voice Alex --rate 170
 npm run generate -- --force   # regenerate existing files (needed after voice/TTS fixes)
 ```
 
-Single letters and digits use macOS `[[char U+....]]` notation so `say` pronounces "A" instead of "Capital A". Optional per-entry `"speak"` in the manifest overrides that text.
+Single letters are spoken as `A.` (trailing period) so `say` pronounces the letter, not "Capital A". Optional per-entry `"speak"` in the manifest overrides that text.
 
 Copy the generated `sd-card/` folder contents to the root of a FAT32 microSD card, then insert the card into the CoreS3.
