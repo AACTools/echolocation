@@ -10,11 +10,18 @@ namespace echo {
 void AudioRouter::begin() {
 #ifndef NATIVE_TEST
   Wire.begin(12, 11);
+  Wire.setTimeOut(2);
 #endif
 }
 
 void AudioRouter::tick() {
 #ifndef NATIVE_TEST
+  const uint32_t now_ms = millis();
+  if (now_ms - last_poll_ms_ < kPollIntervalMs) {
+    return;
+  }
+  last_poll_ms_ = now_ms;
+
   Wire.beginTransmission(kModuleAudioStm32Address);
   Wire.write(0x00);
   if (Wire.endTransmission(false) != 0) {

@@ -28,7 +28,6 @@ static void displayFlush(lv_display_t* display, const lv_area_t* area,
 
 static void touchRead(lv_indev_t* indev, lv_indev_data_t* data) {
   (void)indev;
-  M5.update();
   lgfx::touch_point_t touch_point;
   if (M5.Display.getTouch(&touch_point)) {
     data->state = LV_INDEV_STATE_PRESSED;

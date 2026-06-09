@@ -49,13 +49,20 @@ void UiManager::begin() {
 }
 
 void UiManager::setCurrentKeyLabel(const char* label) {
-  current_key_label_ = label ? label : "";
+  const std::string new_label = label ? label : "";
+  if (new_label == current_key_label_) {
+    return;
+  }
+  current_key_label_ = new_label;
 #ifndef NATIVE_TEST
   updateKeyLabel();
 #endif
 }
 
 void UiManager::setBatteryPercent(int battery_percent) {
+  if (battery_percent == battery_percent_) {
+    return;
+  }
   battery_percent_ = battery_percent;
 #ifndef NATIVE_TEST
   updateBatteryDisplay();
@@ -63,13 +70,20 @@ void UiManager::setBatteryPercent(int battery_percent) {
 }
 
 void UiManager::setErrorMessage(const char* message) {
-  error_message_ = message ? message : "";
+  const std::string new_message = message ? message : "";
+  if (new_message == error_message_) {
+    return;
+  }
+  error_message_ = new_message;
 #ifndef NATIVE_TEST
   updateErrorDisplay();
 #endif
 }
 
 void UiManager::clearError() {
+  if (error_message_.empty()) {
+    return;
+  }
   error_message_.clear();
 #ifndef NATIVE_TEST
   updateErrorDisplay();
@@ -78,9 +92,7 @@ void UiManager::clearError() {
 
 void UiManager::draw() {
 #ifndef NATIVE_TEST
-  updateBatteryDisplay();
-  updateKeyLabel();
-  updateErrorDisplay();
+  // UI widgets are updated by state setters to avoid redundant redraw work.
 #endif
 }
 
