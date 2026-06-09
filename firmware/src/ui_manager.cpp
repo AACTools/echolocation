@@ -240,7 +240,7 @@ void UiManager::buildScreens() {
                       this);
 
   lv_obj_t* settings_label = lv_label_create(settings_button);
-  lv_label_set_text(settings_label, LV_SYMBOL_SETTINGS " Set");
+  lv_label_set_text(settings_label, LV_SYMBOL_SETTINGS " Settings");
   lv_obj_center(settings_label);
 
   screen_settings_ = lv_obj_create(nullptr);
