@@ -8,6 +8,7 @@
 #include "device_settings_store.h"
 #include "hold_detector.h"
 #include "key_event.h"
+#include "lvgl_port.h"
 #include "speech_player.h"
 #include "ui_manager.h"
 #include "usb_keyboard_source.h"
@@ -31,7 +32,6 @@ BleKeyboardSource ble_keyboard;
 HoldDetector hold_detector;
 
 bool sd_ready = false;
-bool factory_reset_requested = false;
 
 }  // namespace
 
@@ -45,8 +45,12 @@ void App::handleKeyEvent(const KeyEvent& event) {
 
 void App::refreshUi() {
 #ifndef NATIVE_TEST
-  int battery = M5.Power.getBatteryLevel();
-  ui.setBatteryPercent(battery);
+  static uint32_t last_battery_poll = 0;
+  const uint32_t now = millis();
+  if (now - last_battery_poll > 1000) {
+    ui.setBatteryPercent(M5.Power.getBatteryLevel());
+    last_battery_poll = now;
+  }
 #endif
   ui.draw();
 }
@@ -74,6 +78,15 @@ void App::setup() {
   settings_store.load(settings);
   ui.begin();
   ui.editingSettings() = settings;
+
+  ui.setOnBleScanRequested([&]() { ble_keyboard.startScan(); });
+  ui.setOnFactoryResetConfirmed([&]() {
+    settings_store.factoryReset();
+    settings = defaultDeviceSettings();
+    ui.editingSettings() = settings;
+    hold_detector.reset();
+    ui.setErrorMessage("Factory reset complete");
+  });
 
   speech.begin([&](const char* message) { ui.setErrorMessage(message); });
   speech.setVolumePercent(settings.volume_percent);
@@ -105,6 +118,7 @@ void App::setup() {
 void App::loop() {
 #ifndef NATIVE_TEST
   M5.update();
+  lvglPortTick();
 #endif
 
   const uint32_t now = millis();
@@ -115,32 +129,6 @@ void App::loop() {
   speech.tick();
   hold_detector.tick(now);
 
-  ui.handleTouch();
-
-  if (ui.currentScreen() == UiScreen::kBleKeyboard) {
-#ifndef NATIVE_TEST
-    if (M5.Touch.getCount()) {
-      ble_keyboard.startScan();
-    }
-#endif
-  }
-
-  if (ui.currentScreen() == UiScreen::kFactoryResetConfirm) {
-#ifndef NATIVE_TEST
-    if (M5.Touch.getCount()) {
-      auto touch = M5.Touch.getDetail(0);
-      if (touch.state == m5::touch_state_t::touch_begin && touch.x < 150 &&
-          touch.y > 110) {
-        settings_store.factoryReset();
-        settings = defaultDeviceSettings();
-        ui.editingSettings() = settings;
-        hold_detector.reset();
-        ui.setErrorMessage("Factory reset complete");
-      }
-    }
-#endif
-  }
-
   applySettingsIfNeeded();
 
   if (!usb_keyboard.isKeyboardConnected() &&
@@ -150,11 +138,7 @@ void App::loop() {
     ui.clearError();
   }
 
-  static uint32_t last_draw = 0;
-  if (now - last_draw > 100) {
-    refreshUi();
-    last_draw = now;
-  }
+  refreshUi();
 }
 
 static App g_app;
