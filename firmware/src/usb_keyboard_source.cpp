@@ -5,6 +5,7 @@
 #ifndef NATIVE_TEST
 #include <Arduino.h>
 #include <SPI.h>
+#include <Usb.h>
 #include <hidboot.h>
 #include <usbhub.h>
 
@@ -23,6 +24,10 @@
 namespace usb_host_shield {
 
 echo::KeyboardEventCallback* g_keyboard_callback = nullptr;
+
+bool isVbusAttached(uint8_t vbus_state) {
+  return vbus_state == FSHOST || vbus_state == LSHOST;
+}
 
 class EcholocationKeyboardParser : public KeyboardReportParser {
  public:
@@ -109,8 +114,7 @@ void UsbKeyboardSource::begin(KeyboardEventCallback callback) {
     return;
   }
   delay(200);
-  usb_host_shield::HidKeyboard.SetReportParser(
-      0, &usb_host_shield::KeyboardParser);
+  usb_host_shield::HidKeyboard.SetReportParser(0, &usb_host_shield::KeyboardParser);
   connected_ = false;
   hid_ready_ = false;
   prev_hid_ready_ = false;
@@ -122,32 +126,23 @@ void UsbKeyboardSource::begin(KeyboardEventCallback callback) {
 void UsbKeyboardSource::tick(uint32_t now_ms) {
 #ifndef NATIVE_TEST
   usb_host_shield::Usb.Task();
-  const uint8_t usb_state = usb_host_shield::Usb.getUsbTaskState();
-  const bool usb_enumerated = (usb_state == USB_STATE_RUNNING);
-  const bool hid_ready = usb_host_shield::HidKeyboard.isReady();
-  usb_task_state_ = usb_state;
-  hid_ready_ = hid_ready;
+  usb_task_state_ = usb_host_shield::Usb.getUsbTaskState();
   usb_vbus_state_ = usb_host_shield::Usb.getVbusState();
-  if (hid_ready && !prev_hid_ready_) {
+  hid_ready_ = usb_host_shield::HidKeyboard.isReady();
+
+  if (hid_ready_ && !prev_hid_ready_) {
     usb_host_shield::KeyboardParser.resetPrevState();
+    usb_host_shield::HidKeyboard.SetReportParser(0, &usb_host_shield::KeyboardParser);
   }
-  prev_hid_ready_ = hid_ready;
-  if (usb_enumerated || hid_ready) {
-    connected_ = true;
-    last_activity_ms_ = now_ms;
-    return;
-  }
+  prev_hid_ready_ = hid_ready_;
 
-  if (connected_ && (now_ms - last_activity_ms_ > kDisconnectGraceMs)) {
-    connected_ = false;
-  }
+  connected_ = usb_host_shield::isVbusAttached(usb_vbus_state_);
 
-  if (usb_state == USB_DETACHED_SUBSTATE_ILLEGAL &&
+  if (usb_task_state_ == USB_DETACHED_SUBSTATE_ILLEGAL &&
       (now_ms - last_reinit_ms_ >= kIllegalStateReinitMs)) {
     usb_host_init_ok_ = (usb_host_shield::Usb.Init() != -1);
     if (usb_host_init_ok_) {
-      usb_host_shield::HidKeyboard.SetReportParser(0,
-                                                   &usb_host_shield::KeyboardParser);
+      usb_host_shield::HidKeyboard.SetReportParser(0, &usb_host_shield::KeyboardParser);
       prev_hid_ready_ = false;
     }
     last_reinit_ms_ = now_ms;

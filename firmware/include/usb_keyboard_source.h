@@ -30,7 +30,6 @@ class UsbKeyboardSource {
   bool prev_hid_ready_ = false;
   bool usb_host_init_ok_ = false;
   uint8_t usb_vbus_state_ = 0;
-  static constexpr uint32_t kDisconnectGraceMs = 3000;
   static constexpr uint32_t kIllegalStateReinitMs = 1000;
 };
 

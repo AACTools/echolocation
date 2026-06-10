@@ -6,7 +6,7 @@
 
 namespace echo {
 
-// Map USB boot keyboard scan codes (HID boot protocol) to HID usage codes.
+// Boot protocol key bytes are HID keyboard usages; modifiers use a separate bitmask.
 uint8_t bootKeyToHidUsage(uint8_t boot_key);
 uint8_t bootModifierToHidUsage(uint8_t modifier_bit_mask);
 
