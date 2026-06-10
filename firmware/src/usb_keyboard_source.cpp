@@ -3,22 +3,22 @@
 #include "boot_key_map.h"
 
 #ifndef NATIVE_TEST
+#include <Arduino.h>
 #include <SPI.h>
-#include <usbhub.h>
 #include <hidboot.h>
+#include <hiduniversal.h>
+#include <usbhub.h>
 
-#if ECHOLOCATION_USB_HOST_PINS_CORES3
-#define USB_HOST_MOSI 36
-#define USB_HOST_MISO 37
-#define USB_HOST_SCK 35
+#if defined(ARDUINO_M5STACK_CORES3)
+#define USB_HOST_SCK 36
+#define USB_HOST_MISO 35
+#define USB_HOST_MOSI 37
 #define USB_HOST_CS 1
-#define USB_HOST_INT 10
 #else
 #define USB_HOST_MOSI 18
 #define USB_HOST_MISO 23
 #define USB_HOST_SCK 19
 #define USB_HOST_CS 5
-#define USB_HOST_INT 35
 #endif
 
 namespace usb_host_shield {
@@ -75,7 +75,7 @@ class EcholocationKeyboardParser : public KeyboardReportParser {
 
 USB Usb;
 USBHub Hub(&Usb);
-HIDBoot<USB_HID_PROTOCOL_KEYBOARD> HidKeyboard(&Usb);
+HIDUniversal HidKeyboard(&Usb);
 EcholocationKeyboardParser KeyboardParser;
 
 }  // namespace usb_host_shield
@@ -85,29 +85,71 @@ EcholocationKeyboardParser KeyboardParser;
 namespace echo {
 
 void UsbKeyboardSource::begin(KeyboardEventCallback callback) {
-  callback_ = std::move(callback);
+  KeyboardEventCallback user_callback = std::move(callback);
+  callback_ = [this, user_callback](const KeyEvent& event) {
+    connected_ = true;
+    last_activity_ms_ = millis();
+    if (user_callback) {
+      user_callback(event);
+    }
+  };
 #ifndef NATIVE_TEST
   usb_host_shield::g_keyboard_callback = &callback_;
   SPI.begin(USB_HOST_SCK, USB_HOST_MISO, USB_HOST_MOSI, USB_HOST_CS);
-  if (usb_host_shield::Usb.Init() == -1) {
+  usb_host_init_ok_ = (usb_host_shield::Usb.Init() != -1);
+  if (!usb_host_init_ok_) {
     connected_ = false;
+    hid_ready_ = false;
     return;
   }
   delay(200);
   usb_host_shield::HidKeyboard.SetReportParser(
       0, &usb_host_shield::KeyboardParser);
-  connected_ = true;
+  connected_ = false;
+  hid_ready_ = false;
+  last_activity_ms_ = 0;
+  last_reinit_ms_ = millis();
 #endif
 }
 
 void UsbKeyboardSource::tick(uint32_t now_ms) {
-  (void)now_ms;
 #ifndef NATIVE_TEST
   usb_host_shield::Usb.Task();
-  connected_ = usb_host_shield::HidKeyboard.isReady();
+  const uint8_t usb_state = usb_host_shield::Usb.getUsbTaskState();
+  const bool usb_enumerated = (usb_state == USB_STATE_RUNNING);
+  const bool hid_ready = usb_host_shield::HidKeyboard.isReady();
+  usb_task_state_ = usb_state;
+  hid_ready_ = hid_ready;
+  usb_vbus_state_ = usb_host_shield::Usb.getVbusState();
+  if (usb_enumerated || hid_ready) {
+    connected_ = true;
+    last_activity_ms_ = now_ms;
+    return;
+  }
+
+  if (connected_ && (now_ms - last_activity_ms_ > kDisconnectGraceMs)) {
+    connected_ = false;
+  }
+
+  if (usb_state == USB_DETACHED_SUBSTATE_ILLEGAL &&
+      (now_ms - last_reinit_ms_ >= kIllegalStateReinitMs)) {
+    usb_host_init_ok_ = (usb_host_shield::Usb.Init() != -1);
+    if (usb_host_init_ok_) {
+      usb_host_shield::HidKeyboard.SetReportParser(0,
+                                                   &usb_host_shield::KeyboardParser);
+    }
+    last_reinit_ms_ = now_ms;
+  }
+#else
+  (void)now_ms;
 #endif
 }
 
 bool UsbKeyboardSource::isKeyboardConnected() const { return connected_; }
+uint8_t UsbKeyboardSource::usbTaskState() const { return usb_task_state_; }
+bool UsbKeyboardSource::isHidReady() const { return hid_ready_; }
+uint32_t UsbKeyboardSource::lastActivityMs() const { return last_activity_ms_; }
+bool UsbKeyboardSource::usbHostInitOk() const { return usb_host_init_ok_; }
+uint8_t UsbKeyboardSource::usbVbusState() const { return usb_vbus_state_; }
 
 }  // namespace echo

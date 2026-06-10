@@ -18,7 +18,12 @@ Firmware for M5Stack CoreS3 with Module USB v1.2 (keyboard host) and Module Audi
 
 ## USB module DIP switches (CoreS3)
 
-Set per M5 documentation for CoreS3 SPI pins (SS on GPIO1, INT on GPIO10).
+On the USB Module v1.2, enable exactly one switch in each bank (slide toward **ON**):
+
+| Bank | Switch ON | Label |
+|------|-----------|-------|
+| SS (3 switches) | middle | **G5** |
+| INT (2 switches) | top | **G34** |
 
 ## Build and upload
 

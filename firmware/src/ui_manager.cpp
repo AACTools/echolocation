@@ -90,6 +90,17 @@ void UiManager::clearError() {
 #endif
 }
 
+void UiManager::setDebugInfo(const char* info) {
+  const std::string new_info = info ? info : "";
+  if (new_info == debug_info_) {
+    return;
+  }
+  debug_info_ = new_info;
+#ifndef NATIVE_TEST
+  updateDebugDisplay();
+#endif
+}
+
 void UiManager::draw() {
 #ifndef NATIVE_TEST
   // UI widgets are updated by state setters to avoid redundant redraw work.
@@ -143,6 +154,10 @@ void UiManager::showScreen(UiScreen screen) {
     case UiScreen::kHoldDuration:
       target = screen_hold_duration_;
       updateHoldDisplay();
+      break;
+    case UiScreen::kDebug:
+      target = screen_debug_;
+      updateDebugDisplay();
       break;
     case UiScreen::kFactoryResetConfirm:
       target = screen_factory_reset_;
@@ -275,6 +290,13 @@ void UiManager::buildScreens() {
                        reinterpret_cast<void*>(static_cast<intptr_t>(
                            UiScreen::kHoldDuration)));
 
+  lv_obj_t* debug_item =
+      lv_list_add_button(settings_list, LV_SYMBOL_EDIT, "Debug");
+  lv_obj_add_event_cb(debug_item, onListNavigate, LV_EVENT_CLICKED, this);
+  lv_obj_set_user_data(debug_item,
+                       reinterpret_cast<void*>(static_cast<intptr_t>(
+                           UiScreen::kDebug)));
+
   lv_obj_t* reset_item =
       lv_list_add_button(settings_list, LV_SYMBOL_WARNING, "Factory reset");
   lv_obj_set_style_text_color(reset_item, kErrorColor, 0);
@@ -374,6 +396,18 @@ void UiManager::buildScreens() {
   lv_obj_t* hold_plus = createStepperButton(screen_hold_duration_, "+", 72);
   lv_obj_add_event_cb(hold_plus, onHoldIncrease, LV_EVENT_CLICKED, this);
 
+  screen_debug_ = lv_obj_create(nullptr);
+  styleScreen(screen_debug_);
+  createHeader(screen_debug_, "Debug", UiScreen::kSettings);
+
+  debug_label_ = lv_label_create(screen_debug_);
+  lv_obj_set_width(debug_label_, LV_PCT(92));
+  lv_label_set_long_mode(debug_label_, LV_LABEL_LONG_WRAP);
+  lv_obj_set_style_text_align(debug_label_, LV_TEXT_ALIGN_LEFT, 0);
+  lv_obj_set_style_text_font(debug_label_, &lv_font_montserrat_14, 0);
+  lv_obj_align(debug_label_, LV_ALIGN_BOTTOM_MID, 0, 0);
+  lv_label_set_text(debug_label_, debug_info_.c_str());
+
   screen_factory_reset_ = lv_obj_create(nullptr);
   styleScreen(screen_factory_reset_);
   createHeader(screen_factory_reset_, "Factory reset", UiScreen::kSettings);
@@ -466,6 +500,13 @@ void UiManager::updateBleComputerDisplay() {
     return;
   }
   lv_label_set_text(ble_computer_label_, editing_settings_.ble_computer_name);
+}
+
+void UiManager::updateDebugDisplay() {
+  if (debug_label_ == nullptr) {
+    return;
+  }
+  lv_label_set_text(debug_label_, debug_info_.c_str());
 }
 
 void UiManager::onSettingsClicked(lv_event_t* event) {

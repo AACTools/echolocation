@@ -19,6 +19,7 @@ enum class UiScreen {
   kBleKeyboard,
   kBleComputer,
   kHoldDuration,
+  kDebug,
   kFactoryResetConfirm,
 };
 
@@ -29,6 +30,7 @@ class UiManager {
   void setBatteryPercent(int battery_percent);
   void setErrorMessage(const char* message);
   void clearError();
+  void setDebugInfo(const char* info);
   void draw();
   void handleTouch();
 
@@ -51,6 +53,7 @@ class UiManager {
   void updateVolumeDisplay();
   void updateHoldDisplay();
   void updateBleComputerDisplay();
+  void updateDebugDisplay();
 
   static void onSettingsClicked(lv_event_t* event);
   static void onBackClicked(lv_event_t* event);
@@ -70,6 +73,7 @@ class UiManager {
   lv_obj_t* screen_ble_keyboard_ = nullptr;
   lv_obj_t* screen_ble_computer_ = nullptr;
   lv_obj_t* screen_hold_duration_ = nullptr;
+  lv_obj_t* screen_debug_ = nullptr;
   lv_obj_t* screen_factory_reset_ = nullptr;
 
   lv_obj_t* key_label_ = nullptr;
@@ -79,11 +83,13 @@ class UiManager {
   lv_obj_t* volume_value_label_ = nullptr;
   lv_obj_t* hold_value_label_ = nullptr;
   lv_obj_t* ble_computer_label_ = nullptr;
+  lv_obj_t* debug_label_ = nullptr;
 #endif
 
   UiScreen screen_ = UiScreen::kMain;
   std::string current_key_label_ = "";
   std::string error_message_ = "";
+  std::string debug_info_ = "Debug info unavailable";
   int battery_percent_ = -1;
   DeviceSettings editing_settings_{};
   bool settings_changed_ = false;

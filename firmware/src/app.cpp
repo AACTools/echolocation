@@ -1,6 +1,7 @@
 #include "app.h"
 
 #include <SD.h>
+#include <cstdio>
 #include <cstring>
 
 #include "audio_router.h"
@@ -50,6 +51,7 @@ struct UiMailbox {
   char key_label[32] = "-";
   bool has_error = false;
   char error_message[96] = "";
+  char debug_info[288] = "Debug not initialized";
   bool settings_override_pending = false;
   DeviceSettings settings_override{};
 };
@@ -90,6 +92,12 @@ void clearUiError() {
   portENTER_CRITICAL(&state_lock);
   ui_mailbox.has_error = false;
   ui_mailbox.error_message[0] = '\0';
+  portEXIT_CRITICAL(&state_lock);
+}
+
+void setUiDebugInfo(const char* info) {
+  portENTER_CRITICAL(&state_lock);
+  copyCString(ui_mailbox.debug_info, sizeof(ui_mailbox.debug_info), info);
   portEXIT_CRITICAL(&state_lock);
 }
 
@@ -164,9 +172,110 @@ bool takeFactoryResetRequest() {
 void updateConnectivityError() {
   if (!usb_keyboard.isKeyboardConnected() && !ble_keyboard.isKeyboardConnected()) {
     setUiError("No keyboard connected");
-  } else if (sd_ready) {
+  } else if (!sd_ready) {
+    setUiError("microSD not found");
+  } else {
     clearUiError();
   }
+}
+
+void updateDebugInfo(uint32_t now_ms) {
+  constexpr uint8_t kUsbDetachedInitialize = 0x11;
+  constexpr uint8_t kUsbDetachedWaitForDevice = 0x12;
+  constexpr uint8_t kUsbDetachedIllegal = 0x13;
+  constexpr uint8_t kUsbAttachedSettle = 0x20;
+  constexpr uint8_t kUsbAttachedResetDevice = 0x30;
+  constexpr uint8_t kUsbAttachedWaitResetComplete = 0x40;
+  constexpr uint8_t kUsbAttachedWaitSof = 0x50;
+  constexpr uint8_t kUsbAttachedWaitReset = 0x51;
+  constexpr uint8_t kUsbAttachedGetDevDescSize = 0x60;
+  constexpr uint8_t kUsbStateAddressing = 0x70;
+  constexpr uint8_t kUsbStateConfiguring = 0x80;
+  constexpr uint8_t kUsbStateRunning = 0x90;
+  constexpr uint8_t kUsbStateError = 0xA0;
+
+  const uint8_t usb_state = usb_keyboard.usbTaskState();
+  const char* usb_state_name = "UNKNOWN";
+  switch (usb_state) {
+    case kUsbDetachedInitialize:
+      usb_state_name = "DETACHED_INIT";
+      break;
+    case kUsbDetachedWaitForDevice:
+      usb_state_name = "DETACHED_WAIT";
+      break;
+    case kUsbDetachedIllegal:
+      usb_state_name = "DETACHED_ILLEGAL";
+      break;
+    case kUsbAttachedSettle:
+      usb_state_name = "ATTACHED_SETTLE";
+      break;
+    case kUsbAttachedResetDevice:
+      usb_state_name = "ATTACHED_RESET";
+      break;
+    case kUsbAttachedWaitResetComplete:
+      usb_state_name = "WAIT_RESET_COMPLETE";
+      break;
+    case kUsbAttachedWaitSof:
+      usb_state_name = "WAIT_SOF";
+      break;
+    case kUsbAttachedWaitReset:
+      usb_state_name = "WAIT_RESET";
+      break;
+    case kUsbAttachedGetDevDescSize:
+      usb_state_name = "GET_DEV_DESC_SIZE";
+      break;
+    case kUsbStateAddressing:
+      usb_state_name = "ADDRESSING";
+      break;
+    case kUsbStateConfiguring:
+      usb_state_name = "CONFIGURING";
+      break;
+    case kUsbStateRunning:
+      usb_state_name = "RUNNING";
+      break;
+    case kUsbStateError:
+      usb_state_name = "ERROR";
+      break;
+    default:
+      break;
+  }
+
+  char buffer[288];
+  const uint32_t last_activity_ms = usb_keyboard.lastActivityMs();
+  const uint32_t activity_age_ms =
+      (last_activity_ms == 0 || now_ms < last_activity_ms) ? 0
+                                                            : (now_ms - last_activity_ms);
+  const char* vbus_name = "unknown";
+  switch (usb_keyboard.usbVbusState()) {
+    case 0:
+      vbus_name = "SE0";
+      break;
+    case 1:
+      vbus_name = "SE1";
+      break;
+    case 2:
+      vbus_name = "FSHOST";
+      break;
+    case 3:
+      vbus_name = "LSHOST";
+      break;
+    default:
+      break;
+  }
+  std::snprintf(
+      buffer, sizeof(buffer),
+      "USB connected: %s\nUSB state: %s (0x%02X)\nUSB HID ready: %s\n"
+      "USB host init: %s\nUSB vbus: %s\nUSB last activity: %lu ms ago\n"
+      "BLE connected: %s\nBLE scanning: %s\nSD ready: %s",
+      usb_keyboard.isKeyboardConnected() ? "yes" : "no",
+      usb_state_name, static_cast<unsigned int>(usb_state),
+      usb_keyboard.isHidReady() ? "yes" : "no",
+      usb_keyboard.usbHostInitOk() ? "ok" : "FAIL",
+      vbus_name,
+      static_cast<unsigned long>(activity_age_ms),
+      ble_keyboard.isKeyboardConnected() ? "yes" : "no",
+      ble_keyboard.isScanning() ? "yes" : "no", sd_ready ? "yes" : "no");
+  setUiDebugInfo(buffer);
 }
 
 void uiTaskMain(void* parameter) {
@@ -199,6 +308,7 @@ void uiTaskMain(void* parameter) {
     } else {
       ui.clearError();
     }
+    ui.setDebugInfo(snapshot.debug_info);
 
     if (now - last_battery_poll_ms >= 1000) {
       ui.setBatteryPercent(M5.Power.getBatteryLevel());
@@ -222,6 +332,7 @@ void workerTaskMain(void* parameter) {
   uint32_t last_usb_keyboard_tick_ms = 0;
   uint32_t last_ble_keyboard_tick_ms = 0;
   uint32_t last_computer_output_tick_ms = 0;
+  uint32_t last_debug_update_ms = 0;
 
   while (true) {
     const uint32_t now = millis();
@@ -267,6 +378,10 @@ void workerTaskMain(void* parameter) {
     speech.tick();
     hold_detector.tick(now);
     updateConnectivityError();
+    if (now - last_debug_update_ms >= 250) {
+      updateDebugInfo(now);
+      last_debug_update_ms = now;
+    }
 
     vTaskDelay(pdMS_TO_TICKS(1));
   }
