@@ -6,7 +6,6 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <hidboot.h>
-#include <hiduniversal.h>
 #include <usbhub.h>
 
 #if defined(ARDUINO_M5STACK_CORES3)
@@ -26,6 +25,13 @@ namespace usb_host_shield {
 echo::KeyboardEventCallback* g_keyboard_callback = nullptr;
 
 class EcholocationKeyboardParser : public KeyboardReportParser {
+ public:
+  void resetPrevState() {
+    for (uint8_t i = 0; i < sizeof(prevState.bInfo); ++i) {
+      prevState.bInfo[i] = 0;
+    }
+  }
+
  protected:
   void OnKeyDown(uint8_t modifier, uint8_t key) override {
     emit(modifier, key, true);
@@ -75,7 +81,7 @@ class EcholocationKeyboardParser : public KeyboardReportParser {
 
 USB Usb;
 USBHub Hub(&Usb);
-HIDUniversal HidKeyboard(&Usb);
+HIDBoot<USB_HID_PROTOCOL_KEYBOARD> HidKeyboard(&Usb);
 EcholocationKeyboardParser KeyboardParser;
 
 }  // namespace usb_host_shield
@@ -107,6 +113,7 @@ void UsbKeyboardSource::begin(KeyboardEventCallback callback) {
       0, &usb_host_shield::KeyboardParser);
   connected_ = false;
   hid_ready_ = false;
+  prev_hid_ready_ = false;
   last_activity_ms_ = 0;
   last_reinit_ms_ = millis();
 #endif
@@ -121,6 +128,10 @@ void UsbKeyboardSource::tick(uint32_t now_ms) {
   usb_task_state_ = usb_state;
   hid_ready_ = hid_ready;
   usb_vbus_state_ = usb_host_shield::Usb.getVbusState();
+  if (hid_ready && !prev_hid_ready_) {
+    usb_host_shield::KeyboardParser.resetPrevState();
+  }
+  prev_hid_ready_ = hid_ready;
   if (usb_enumerated || hid_ready) {
     connected_ = true;
     last_activity_ms_ = now_ms;
@@ -137,6 +148,7 @@ void UsbKeyboardSource::tick(uint32_t now_ms) {
     if (usb_host_init_ok_) {
       usb_host_shield::HidKeyboard.SetReportParser(0,
                                                    &usb_host_shield::KeyboardParser);
+      prev_hid_ready_ = false;
     }
     last_reinit_ms_ = now_ms;
   }
