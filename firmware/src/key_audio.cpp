@@ -78,6 +78,13 @@ bool audioFileExists(const char* filename) {
   return SD.exists(path);
 }
 
+void ensureSdReady() {
+  prepareSdBus();
+  if (!sd_ready) {
+    sd_ready = mountSdCard();
+  }
+}
+
 }  // namespace
 
 void keyAudioBegin() {
@@ -96,10 +103,7 @@ void keyAudioGetDebugInfo(KeyAudioDebugInfo* info) {
 
   *info = {};
 
-  prepareSdBus();
-  if (!sd_ready) {
-    sd_ready = mountSdCard();
-  }
+  ensureSdReady();
 
   info->sd_mounted = sd_ready;
   if (!sd_ready) {
@@ -132,11 +136,14 @@ void keyAudioGetDebugInfo(KeyAudioDebugInfo* info) {
 }
 
 void keyAudioPlayForLabel(const char* label) {
-  if (!sd_ready || label == nullptr || label[0] == '\0') {
+  if (label == nullptr || label[0] == '\0') {
     return;
   }
 
-  prepareSdBus();
+  ensureSdReady();
+  if (!sd_ready) {
+    return;
+  }
 
   char basename[16];
   if (!labelToBasename(label, basename, sizeof(basename))) {

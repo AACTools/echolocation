@@ -35,8 +35,8 @@ void setup() {
   lvglPortInit();
   uiInit();
   deviceSettingsLoad();
-  keyAudioBegin();
   usbKeyboardBegin();
+  keyAudioRefresh();
   updateBatteryStatus();
 }
 
