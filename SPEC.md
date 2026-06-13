@@ -17,7 +17,7 @@ Specifically we are using the following modules.
 
 ## Features
 
-You can connect a keyboard to the device, via bluetooth or usb. As soon as the keyboard is connected to the device it should start reading aloud every key that is pressed.
+You can connect a keyboard to the device, via bluetooth or usb. As soon as the keyboard is connected to the device it should start reading aloud every key that is pressed. An example of keyboard that needs to work is an Apple Magic Keyboard, but it should work with any keyboard.
 
 You can also connect a computer to the device, via usb or bluetooth. As soon as the computer is connected to the device it should start sending keypresses to the device when the user holds down a key (for the specified duration). It should simulate a normal keyboard keypress.
 
@@ -34,6 +34,8 @@ If the audio is playing and you press a new key it should stop the current audio
 A keyboard and a computer can be connected at the same time. Every keypress is spoken; only keys held for the configured duration are sent to the computer.
 
 Settings are saved and persist across reboot.
+
+The settings page should also have a 'debug' button that shows a page with basic debug information that I can use to track down bugs.
 
 ### Screen
 
@@ -67,3 +69,13 @@ Wherever possible write tests. All tests should pass.
 For hardware use C++. For scripts use NodeJS.
 
 Code should have a brief guide on how to execute or load it.
+
+I am a principal software engineer but I am not a hardware engineer, so give variables and functions clear names, that are easy to understand and leave comments.
+
+## Other
+
+It should use the LVGL library for the UI so it feels modern and native.
+
+It should be built with speed as the focus, it should respond to a keypress instantly, any delay is not acceptable. Touches on the screen should also feel snappy and responsive.
+
+If there is any loading on startup make sure to show a loading page.
