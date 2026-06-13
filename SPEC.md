@@ -76,6 +76,6 @@ I am a principal software engineer but I am not a hardware engineer, so give var
 
 It should use the LVGL library for the UI so it feels modern and native.
 
-It should be built with speed as the focus, it should respond to a keypress instantly, any delay is not acceptable. Touches on the screen should also feel snappy and responsive.
+It should be built with speed as the focus. Keypress speech must feel instant and should start within ~50ms of key down. Any noticeable delay is not acceptable. Screen touches should feel snappy and responsive, with UI feedback within ~50ms.
 
 If there is any loading on startup make sure to show a loading page.
