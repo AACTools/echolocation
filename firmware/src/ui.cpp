@@ -1,6 +1,10 @@
 #include "ui.h"
 
+#include "key_audio.h"
+
 #include <lvgl.h>
+
+#include <stdio.h>
 
 namespace {
 
@@ -14,6 +18,7 @@ lv_obj_t* screen_main = nullptr;
 lv_obj_t* screen_settings = nullptr;
 lv_obj_t* keyboard_icon = nullptr;
 lv_obj_t* pressed_key_label = nullptr;
+lv_obj_t* audio_debug_label = nullptr;
 
 void styleScreen(lv_obj_t* screen) {
   lv_obj_set_style_bg_color(screen, kBgColor, 0);
@@ -67,8 +72,42 @@ lv_obj_t* createHeader(lv_obj_t* parent, const char* title, Screen back_to) {
   return header;
 }
 
+void refreshAudioDebugLabel() {
+  if (audio_debug_label == nullptr) {
+    return;
+  }
+
+  KeyAudioDebugInfo info;
+  keyAudioGetDebugInfo(&info);
+
+  char text[320];
+  snprintf(text, sizeof(text),
+           "SD card: %s\n"
+           "/audio folder: %s\n\n"
+           "Sample files:\n"
+           "  a.wav: %s\n"
+           "  b.wav: %s\n"
+           "  c.wav: %s\n"
+           "  space.wav: %s\n"
+           "  enter.wav: %s\n\n"
+           "Found: %d/5",
+           info.sd_mounted ? "yes" : "no",
+           info.audio_dir_exists ? "yes" : "no",
+           info.probe_a_wav ? "yes" : "no", info.probe_b_wav ? "yes" : "no",
+           info.probe_c_wav ? "yes" : "no", info.probe_space_wav ? "yes" : "no",
+           info.probe_enter_wav ? "yes" : "no", info.probe_files_found);
+  lv_label_set_text(audio_debug_label, text);
+}
+
+void onRefreshAudioDebugClicked(lv_event_t* event) {
+  (void)event;
+  keyAudioRefresh();
+  refreshAudioDebugLabel();
+}
+
 void onSettingsClicked(lv_event_t* event) {
   (void)event;
+  refreshAudioDebugLabel();
   showScreen(Screen::kSettings);
 }
 
@@ -111,6 +150,32 @@ void buildScreens() {
   screen_settings = lv_obj_create(nullptr);
   styleScreen(screen_settings);
   createHeader(screen_settings, "Settings", Screen::kMain);
+
+  lv_obj_t* debug_title = lv_label_create(screen_settings);
+  lv_label_set_text(debug_title, "Audio debug");
+  lv_obj_set_style_text_font(debug_title, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_color(debug_title, lv_color_white(), 0);
+  lv_obj_align(debug_title, LV_ALIGN_TOP_LEFT, 12, 48);
+
+  audio_debug_label = lv_label_create(screen_settings);
+  lv_label_set_text(audio_debug_label, "Checking...");
+  lv_obj_set_style_text_font(audio_debug_label, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(audio_debug_label, lv_color_white(), 0);
+  lv_obj_set_width(audio_debug_label, 296);
+  lv_label_set_long_mode(audio_debug_label, LV_LABEL_LONG_WRAP);
+  lv_obj_align(audio_debug_label, LV_ALIGN_TOP_LEFT, 12, 72);
+
+  lv_obj_t* refresh_button = lv_btn_create(screen_settings);
+  lv_obj_set_size(refresh_button, 120, 36);
+  lv_obj_align(refresh_button, LV_ALIGN_BOTTOM_MID, 0, -12);
+  lv_obj_set_style_radius(refresh_button, 8, 0);
+  lv_obj_set_style_bg_color(refresh_button, kAccentColor, 0);
+  lv_obj_add_event_cb(refresh_button, onRefreshAudioDebugClicked,
+                      LV_EVENT_CLICKED, nullptr);
+
+  lv_obj_t* refresh_label = lv_label_create(refresh_button);
+  lv_label_set_text(refresh_label, "Refresh");
+  lv_obj_center(refresh_label);
 }
 
 }  // namespace

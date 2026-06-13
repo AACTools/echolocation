@@ -1,6 +1,7 @@
 #include "usb_keyboard.h"
 
 #include "ui.h"
+#include "key_audio.h"
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -80,6 +81,7 @@ class KeyboardParser : public KeyboardReportParser {
       return;
     }
     uiSetPressedKey(label);
+    keyAudioPlayForLabel(label);
   }
 
  private:

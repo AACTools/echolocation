@@ -3,6 +3,7 @@
 
 #include "lvgl_port.h"
 #include "ui.h"
+#include "key_audio.h"
 #include "usb_keyboard.h"
 
 void setup() {
@@ -12,6 +13,7 @@ void setup() {
 
   lvglPortInit();
   uiInit();
+  keyAudioBegin();
   usbKeyboardBegin();
 }
 
