@@ -106,7 +106,9 @@ void UsbKeyboardSource::begin(KeyboardEventCallback callback) {
   };
 #ifndef NATIVE_TEST
   usb_host_shield::g_keyboard_callback = &callback_;
+#if !defined(ARDUINO_M5STACK_CORES3)
   SPI.begin(USB_HOST_SCK, USB_HOST_MISO, USB_HOST_MOSI, USB_HOST_CS);
+#endif
   usb_host_init_ok_ = (usb_host_shield::Usb.Init() != -1);
   if (!usb_host_init_ok_) {
     connected_ = false;

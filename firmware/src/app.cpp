@@ -17,6 +17,7 @@
 
 #ifndef NATIVE_TEST
 #include <M5Unified.h>
+#include <SPI.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #endif
@@ -43,6 +44,25 @@ constexpr uint32_t kBleKeyboardTickIntervalMs = 5;
 constexpr uint32_t kComputerOutputTickIntervalMs = 5;
 
 #ifndef NATIVE_TEST
+#if defined(ARDUINO_M5STACK_CORES3)
+bool beginSdCard() {
+  constexpr int kSpiSck = 36;
+  constexpr int kSpiMiso = 35;
+  constexpr int kSpiMosi = 37;
+  constexpr int kSdCs = 4;
+  constexpr int kUsbHostCs = 1;
+
+  pinMode(kSdCs, OUTPUT);
+  digitalWrite(kSdCs, HIGH);
+  pinMode(kUsbHostCs, OUTPUT);
+  digitalWrite(kUsbHostCs, HIGH);
+  SPI.begin(kSpiSck, kSpiMiso, kSpiMosi);
+  return SD.begin(kSdCs, SPI, 25000000);
+}
+#else
+bool beginSdCard() { return SD.begin(GPIO_NUM_4); }
+#endif
+
 TaskHandle_t ui_task_handle = nullptr;
 TaskHandle_t worker_task_handle = nullptr;
 portMUX_TYPE state_lock = portMUX_INITIALIZER_UNLOCKED;
@@ -432,7 +452,7 @@ void App::setup() {
   });
 
 #ifndef NATIVE_TEST
-  if (!SD.begin(GPIO_NUM_4)) {
+  if (!beginSdCard()) {
     setUiError("microSD not found");
     sd_ready = false;
   } else {
