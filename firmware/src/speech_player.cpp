@@ -225,24 +225,52 @@ bool SpeechPlayer::loadIntoCache(uint8_t hid_usage) {
 #endif
 }
 
-void SpeechPlayer::preloadFromSd() {
+void SpeechPlayer::preloadFromSd(PreloadProgressCallback on_progress) {
 #ifndef NATIVE_TEST
   File dir = SD.open("/audio/keys");
   if (!dir || !dir.isDirectory()) {
     return;
   }
 
+  int total = 0;
   File entry;
   while ((entry = dir.openNextFile())) {
     const char* name = entry.name();
     unsigned int usage = 0;
     if (std::sscanf(name, "u%03x.wav", &usage) == 1 ||
         std::sscanf(name, "u%x.wav", &usage) == 1) {
-      loadIntoCache(static_cast<uint8_t>(usage));
+      total++;
     }
     entry.close();
   }
   dir.close();
+
+  if (on_progress) {
+    on_progress(0, total);
+  }
+
+  dir = SD.open("/audio/keys");
+  if (!dir || !dir.isDirectory()) {
+    return;
+  }
+
+  int loaded = 0;
+  while ((entry = dir.openNextFile())) {
+    const char* name = entry.name();
+    unsigned int usage = 0;
+    if (std::sscanf(name, "u%03x.wav", &usage) == 1 ||
+        std::sscanf(name, "u%x.wav", &usage) == 1) {
+      loadIntoCache(static_cast<uint8_t>(usage));
+      loaded++;
+      if (on_progress) {
+        on_progress(loaded, total);
+      }
+    }
+    entry.close();
+  }
+  dir.close();
+#else
+  (void)on_progress;
 #endif
 }
 

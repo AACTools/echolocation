@@ -454,14 +454,20 @@ void App::setup() {
   });
 
 #ifndef NATIVE_TEST
+  lvglPortTick();
   if (!beginSdCard()) {
     setUiError("microSD not found");
     sd_ready = false;
   } else {
     sd_ready = true;
-    speech.preloadFromSd();
+    speech.preloadFromSd([&](int loaded, int total) {
+      ui.setLoadingProgress(loaded, total);
+      lvglPortTick();
+    });
     clearUiError();
   }
+  ui.finishLoading();
+  lvglPortTick();
 #endif
 
   usb_keyboard.begin([&](const KeyEvent& event) { handleKeyEvent(event); });

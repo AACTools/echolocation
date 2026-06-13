@@ -7,11 +7,12 @@
 namespace echo {
 
 using SpeechErrorCallback = std::function<void(const char* message)>;
+using PreloadProgressCallback = std::function<void(int loaded, int total)>;
 
 class SpeechPlayer {
  public:
   void begin(SpeechErrorCallback on_error);
-  void preloadFromSd();
+  void preloadFromSd(PreloadProgressCallback on_progress = nullptr);
   void setVolumePercent(uint8_t volume_percent);
   void speakKey(uint8_t hid_usage);
   void stop();

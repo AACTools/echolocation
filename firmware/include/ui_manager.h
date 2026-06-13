@@ -12,6 +12,7 @@
 namespace echo {
 
 enum class UiScreen {
+  kLoading,
   kMain,
   kSettings,
   kVolume,
@@ -26,6 +27,8 @@ enum class UiScreen {
 class UiManager {
  public:
   void begin();
+  void setLoadingProgress(int loaded, int total);
+  void finishLoading();
   void setCurrentKeyLabel(const char* label);
   void requestImmediateKeyLabel(const char* label);
   void setBatteryPercent(int battery_percent);
@@ -55,6 +58,7 @@ class UiManager {
   void updateHoldDisplay();
   void updateBleComputerDisplay();
   void updateDebugDisplay();
+  void updateLoadingDisplay();
 
   static void onSettingsClicked(lv_event_t* event);
   static void onBackClicked(lv_event_t* event);
@@ -67,6 +71,7 @@ class UiManager {
   static void onFactoryResetConfirm(lv_event_t* event);
   static void onFactoryResetCancel(lv_event_t* event);
 
+  lv_obj_t* screen_loading_ = nullptr;
   lv_obj_t* screen_main_ = nullptr;
   lv_obj_t* screen_settings_ = nullptr;
   lv_obj_t* screen_volume_ = nullptr;
@@ -77,6 +82,8 @@ class UiManager {
   lv_obj_t* screen_debug_ = nullptr;
   lv_obj_t* screen_factory_reset_ = nullptr;
 
+  lv_obj_t* loading_bar_ = nullptr;
+  lv_obj_t* loading_count_label_ = nullptr;
   lv_obj_t* key_label_ = nullptr;
   lv_obj_t* battery_bar_ = nullptr;
   lv_obj_t* battery_label_ = nullptr;
@@ -87,7 +94,9 @@ class UiManager {
   lv_obj_t* debug_label_ = nullptr;
 #endif
 
-  UiScreen screen_ = UiScreen::kMain;
+  UiScreen screen_ = UiScreen::kLoading;
+  int loading_loaded_ = 0;
+  int loading_total_ = 0;
   std::string current_key_label_ = "";
   std::string error_message_ = "";
   std::string debug_info_ = "Debug info unavailable";

@@ -45,6 +45,23 @@ void UiManager::begin() {
 #ifndef NATIVE_TEST
   lvglPortInit();
   buildScreens();
+  showScreen(UiScreen::kLoading);
+#endif
+}
+
+void UiManager::setLoadingProgress(int loaded, int total) {
+  if (loaded == loading_loaded_ && total == loading_total_) {
+    return;
+  }
+  loading_loaded_ = loaded;
+  loading_total_ = total;
+#ifndef NATIVE_TEST
+  updateLoadingDisplay();
+#endif
+}
+
+void UiManager::finishLoading() {
+#ifndef NATIVE_TEST
   showScreen(UiScreen::kMain);
 #endif
 }
@@ -167,6 +184,10 @@ void UiManager::showScreen(UiScreen screen) {
   screen_ = screen;
   lv_obj_t* target = nullptr;
   switch (screen) {
+    case UiScreen::kLoading:
+      target = screen_loading_;
+      updateLoadingDisplay();
+      break;
     case UiScreen::kMain:
       target = screen_main_;
       break;
@@ -239,6 +260,37 @@ lv_obj_t* UiManager::createHeader(lv_obj_t* parent, const char* title,
 }
 
 void UiManager::buildScreens() {
+  screen_loading_ = lv_obj_create(nullptr);
+  styleScreen(screen_loading_);
+
+  lv_obj_t* loading_title = lv_label_create(screen_loading_);
+  lv_label_set_text(loading_title, "echolocation");
+  lv_obj_set_style_text_font(loading_title, &lv_font_montserrat_16, 0);
+  lv_obj_align(loading_title, LV_ALIGN_TOP_MID, 0, 24);
+
+  lv_obj_t* loading_status = lv_label_create(screen_loading_);
+  lv_label_set_text(loading_status, "Loading audio...");
+  lv_obj_set_style_text_font(loading_status, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_color(loading_status, lv_color_white(), 0);
+  lv_obj_align(loading_status, LV_ALIGN_CENTER, 0, -24);
+
+  lv_obj_t* loading_spinner = lv_spinner_create(screen_loading_);
+  lv_obj_set_size(loading_spinner, 48, 48);
+  lv_obj_align(loading_spinner, LV_ALIGN_CENTER, 0, 24);
+  lv_obj_set_style_arc_color(loading_spinner, kAccentColor, LV_PART_INDICATOR);
+
+  loading_bar_ = lv_bar_create(screen_loading_);
+  lv_obj_set_size(loading_bar_, 220, 12);
+  lv_obj_align(loading_bar_, LV_ALIGN_CENTER, 0, 72);
+  lv_bar_set_range(loading_bar_, 0, 100);
+  lv_obj_set_style_bg_color(loading_bar_, lv_color_hex(0x3A3A3A), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(loading_bar_, kAccentColor, LV_PART_INDICATOR);
+
+  loading_count_label_ = lv_label_create(screen_loading_);
+  lv_label_set_text(loading_count_label_, "0 / 0");
+  lv_obj_set_style_text_color(loading_count_label_, lv_color_hex(0xAAAAAA), 0);
+  lv_obj_align(loading_count_label_, LV_ALIGN_CENTER, 0, 96);
+
   screen_main_ = lv_obj_create(nullptr);
   styleScreen(screen_main_);
 
@@ -477,6 +529,23 @@ void UiManager::buildScreens() {
   lv_obj_t* cancel_label = lv_label_create(cancel_button);
   lv_label_set_text(cancel_label, "Cancel");
   lv_obj_center(cancel_label);
+}
+
+void UiManager::updateLoadingDisplay() {
+  if (loading_bar_ == nullptr || loading_count_label_ == nullptr) {
+    return;
+  }
+  if (loading_total_ > 0) {
+    const int percent = (loading_loaded_ * 100) / loading_total_;
+    lv_bar_set_value(loading_bar_, percent, LV_ANIM_OFF);
+    char buffer[24];
+    std::snprintf(buffer, sizeof(buffer), "%d / %d", loading_loaded_,
+                  loading_total_);
+    lv_label_set_text(loading_count_label_, buffer);
+  } else {
+    lv_bar_set_value(loading_bar_, 0, LV_ANIM_OFF);
+    lv_label_set_text(loading_count_label_, "Scanning...");
+  }
 }
 
 void UiManager::updateBatteryDisplay() {
