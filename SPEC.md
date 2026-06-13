@@ -27,7 +27,7 @@ The behaviour should be the same for modifier keys.
 
 You should be able to seamlessly switch between different keyboards and computers.
 
-It should work with any keyboard layout.
+Keyboard handling should be layout-agnostic by default using HID usage codes. The only supported layout maps are US and UK. When the device can confidently determine one of those layouts, it should map usage codes to the user-expected character for speech output. If layout is unknown or unsupported, it should speak the physical key name (for example, "left bracket key") instead of guessing a character.
 
 If the audio is playing and you press a new key it should stop the current audio and start playing the new audio.
 
