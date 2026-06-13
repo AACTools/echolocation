@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 
 #include "echolocation_core/key_event.h"
 #include "echolocation_core/settings_model.h"
@@ -8,6 +9,9 @@
 namespace echolocation {
 
 struct LayoutResult {
+  LayoutResult() = default;
+  LayoutResult(std::string token, bool used)
+      : spoken_token(std::move(token)), used_fallback(used) {}
   std::string spoken_token;
   bool used_fallback = false;
 };

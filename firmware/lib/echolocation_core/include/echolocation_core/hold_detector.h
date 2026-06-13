@@ -3,7 +3,7 @@
 #include <functional>
 #include <unordered_map>
 
-#include "key_event.h"
+#include "echolocation_core/key_event.h"
 
 namespace echolocation {
 
