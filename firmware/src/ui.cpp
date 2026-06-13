@@ -8,21 +8,31 @@
 
 namespace {
 
-enum class Screen { kMain, kSettings, kDebug, kVolume };
+enum class Screen { kMain, kSettings, kDebug, kVolume, kHoldDuration };
 
 const lv_color_t kBgColor = lv_color_hex(0x1A1A1A);
 const lv_color_t kHeaderColor = lv_color_hex(0x2A2A2A);
 const lv_color_t kAccentColor = lv_color_hex(0x0066FF);
 
+constexpr uint32_t kDefaultHoldDurationMs = 500;
+constexpr uint32_t kMinHoldDurationMs = 100;
+constexpr uint32_t kMaxHoldDurationMs = 3000;
+
 lv_obj_t* screen_main = nullptr;
 lv_obj_t* screen_settings = nullptr;
 lv_obj_t* screen_debug = nullptr;
 lv_obj_t* screen_volume = nullptr;
+lv_obj_t* screen_hold_duration = nullptr;
 lv_obj_t* keyboard_icon = nullptr;
+lv_obj_t* pressed_key_box = nullptr;
 lv_obj_t* pressed_key_label = nullptr;
 lv_obj_t* audio_debug_label = nullptr;
 lv_obj_t* volume_slider = nullptr;
 lv_obj_t* volume_value_label = nullptr;
+lv_obj_t* hold_duration_slider = nullptr;
+lv_obj_t* hold_duration_value_label = nullptr;
+
+uint32_t hold_duration_ms = kDefaultHoldDurationMs;
 
 void showScreen(Screen screen);
 
@@ -46,6 +56,9 @@ void showScreen(Screen screen) {
       break;
     case Screen::kVolume:
       target = screen_volume;
+      break;
+    case Screen::kHoldDuration:
+      target = screen_hold_duration;
       break;
   }
   if (target != nullptr) {
@@ -152,6 +165,17 @@ void updateVolumeLabel() {
   lv_label_set_text(volume_value_label, text);
 }
 
+void updateHoldDurationLabel() {
+  if (hold_duration_slider == nullptr || hold_duration_value_label == nullptr) {
+    return;
+  }
+
+  const int32_t value = lv_slider_get_value(hold_duration_slider);
+  char text[32];
+  snprintf(text, sizeof(text), "Hold Duration: %ld ms", static_cast<long>(value));
+  lv_label_set_text(hold_duration_value_label, text);
+}
+
 void onRefreshAudioDebugClicked(lv_event_t* event) {
   (void)event;
   keyAudioRefresh();
@@ -185,6 +209,22 @@ void onVolumeSliderChanged(lv_event_t* event) {
   updateVolumeLabel();
 }
 
+void onHoldDurationMenuClicked(lv_event_t* event) {
+  (void)event;
+  if (hold_duration_slider != nullptr) {
+    lv_slider_set_value(hold_duration_slider, static_cast<int32_t>(hold_duration_ms),
+                        LV_ANIM_OFF);
+  }
+  updateHoldDurationLabel();
+  showScreen(Screen::kHoldDuration);
+}
+
+void onHoldDurationSliderChanged(lv_event_t* event) {
+  lv_obj_t* slider = lv_event_get_target_obj(event);
+  hold_duration_ms = static_cast<uint32_t>(lv_slider_get_value(slider));
+  updateHoldDurationLabel();
+}
+
 void buildScreens() {
   screen_main = lv_obj_create(nullptr);
   styleScreen(screen_main);
@@ -202,12 +242,23 @@ void buildScreens() {
   lv_obj_set_style_text_color(title, lv_color_white(), 0);
   lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 16);
 
-  pressed_key_label = lv_label_create(screen_main);
+  pressed_key_box = lv_obj_create(screen_main);
+  lv_obj_set_size(pressed_key_box, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(pressed_key_box, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_color(pressed_key_box, kAccentColor, 0);
+  lv_obj_set_style_border_width(pressed_key_box, 0, 0);
+  lv_obj_set_style_radius(pressed_key_box, 8, 0);
+  lv_obj_set_style_pad_hor(pressed_key_box, 16, 0);
+  lv_obj_set_style_pad_ver(pressed_key_box, 8, 0);
+  lv_obj_set_style_shadow_width(pressed_key_box, 0, 0);
+  lv_obj_align(pressed_key_box, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_add_flag(pressed_key_box, LV_OBJ_FLAG_HIDDEN);
+
+  pressed_key_label = lv_label_create(pressed_key_box);
   lv_label_set_text(pressed_key_label, "");
   lv_obj_set_style_text_font(pressed_key_label, &lv_font_montserrat_48, 0);
   lv_obj_set_style_text_color(pressed_key_label, lv_color_white(), 0);
-  lv_obj_align(pressed_key_label, LV_ALIGN_CENTER, 0, 0);
-  lv_obj_add_flag(pressed_key_label, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_center(pressed_key_label);
 
   lv_obj_t* settings_button = lv_btn_create(screen_main);
   lv_obj_set_size(settings_button, 100, 40);
@@ -226,6 +277,7 @@ void buildScreens() {
   createHeader(screen_settings, "Settings", Screen::kMain);
   createMenuButton(screen_settings, "Debug", 56, onDebugMenuClicked);
   createMenuButton(screen_settings, "Volume", 108, onVolumeMenuClicked);
+  createMenuButton(screen_settings, "Hold Duration", 160, onHoldDurationMenuClicked);
 
   screen_debug = lv_obj_create(nullptr);
   styleScreen(screen_debug);
@@ -269,6 +321,27 @@ void buildScreens() {
   lv_obj_add_event_cb(volume_slider, onVolumeSliderChanged, LV_EVENT_VALUE_CHANGED,
                       nullptr);
   updateVolumeLabel();
+
+  screen_hold_duration = lv_obj_create(nullptr);
+  styleScreen(screen_hold_duration);
+  createHeader(screen_hold_duration, "Hold Duration", Screen::kSettings);
+
+  hold_duration_value_label = lv_label_create(screen_hold_duration);
+  lv_label_set_text(hold_duration_value_label, "Hold Duration: 500 ms");
+  lv_obj_set_style_text_font(hold_duration_value_label, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_color(hold_duration_value_label, lv_color_white(), 0);
+  lv_obj_align(hold_duration_value_label, LV_ALIGN_CENTER, 0, -24);
+
+  hold_duration_slider = lv_slider_create(screen_hold_duration);
+  lv_obj_set_size(hold_duration_slider, 260, 12);
+  lv_obj_align(hold_duration_slider, LV_ALIGN_CENTER, 0, 16);
+  lv_slider_set_range(hold_duration_slider, static_cast<int32_t>(kMinHoldDurationMs),
+                      static_cast<int32_t>(kMaxHoldDurationMs));
+  lv_slider_set_value(hold_duration_slider,
+                      static_cast<int32_t>(kDefaultHoldDurationMs), LV_ANIM_OFF);
+  lv_obj_add_event_cb(hold_duration_slider, onHoldDurationSliderChanged,
+                      LV_EVENT_VALUE_CHANGED, nullptr);
+  updateHoldDurationLabel();
 }
 
 }  // namespace
@@ -290,14 +363,36 @@ void uiSetKeyboardConnected(bool connected) {
 }
 
 void uiSetPressedKey(const char* label) {
-  if (pressed_key_label == nullptr) {
+  if (pressed_key_label == nullptr || pressed_key_box == nullptr) {
     return;
   }
   if (label == nullptr || label[0] == '\0') {
     lv_label_set_text(pressed_key_label, "");
-    lv_obj_add_flag(pressed_key_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(pressed_key_box, LV_OBJ_FLAG_HIDDEN);
     return;
   }
   lv_label_set_text(pressed_key_label, label);
-  lv_obj_remove_flag(pressed_key_label, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_remove_flag(pressed_key_box, LV_OBJ_FLAG_HIDDEN);
+}
+
+void uiSetKeyBoxOutline(bool show) {
+  if (pressed_key_box == nullptr) {
+    return;
+  }
+  lv_obj_set_style_border_width(pressed_key_box, show ? 3 : 0, 0);
+}
+
+uint32_t uiGetHoldDurationMs() { return hold_duration_ms; }
+
+void uiSetHoldDurationMs(uint32_t ms) {
+  if (ms < kMinHoldDurationMs) {
+    ms = kMinHoldDurationMs;
+  } else if (ms > kMaxHoldDurationMs) {
+    ms = kMaxHoldDurationMs;
+  }
+  hold_duration_ms = ms;
+  if (hold_duration_slider != nullptr) {
+    lv_slider_set_value(hold_duration_slider, static_cast<int32_t>(ms), LV_ANIM_OFF);
+  }
+  updateHoldDurationLabel();
 }

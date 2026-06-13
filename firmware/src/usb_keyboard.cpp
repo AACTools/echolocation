@@ -18,6 +18,12 @@ HIDBoot<USB_HID_PROTOCOL_KEYBOARD> HidKeyboard(&Usb);
 
 bool usb_host_ready = false;
 bool last_reported_connected = false;
+uint8_t displayed_key = 0;
+uint8_t displayed_mod = 0;
+uint8_t held_key = 0;
+uint8_t held_mod = 0;
+unsigned long key_pressed_at = 0;
+bool box_shown = false;
 
 const char* hidKeyName(uint8_t key) {
   switch (key) {
@@ -80,8 +86,34 @@ class KeyboardParser : public KeyboardReportParser {
     if (label[0] == '\0') {
       return;
     }
-    uiSetPressedKey(label);
+
+    const bool is_new_key = (key != displayed_key || mod != displayed_mod);
+    if (is_new_key) {
+      displayed_key = key;
+      displayed_mod = mod;
+      box_shown = false;
+      uiSetKeyBoxOutline(false);
+      uiSetPressedKey(label);
+    }
+
+    if (held_key != key || held_mod != mod) {
+      held_key = key;
+      held_mod = mod;
+      key_pressed_at = millis();
+      if (!is_new_key) {
+        box_shown = false;
+        uiSetKeyBoxOutline(false);
+      }
+    }
+
     keyAudioPlayForLabel(label);
+  }
+
+  void OnKeyUp(uint8_t mod, uint8_t key) override {
+    if (key == held_key && mod == held_mod) {
+      held_key = 0;
+      held_mod = 0;
+    }
   }
 
  private:
@@ -159,6 +191,13 @@ void usbKeyboardTick() {
     Usb.IntHandler();
   }
   Usb.Task();
+
+  if (held_key != 0 && !box_shown && held_key == displayed_key &&
+      held_mod == displayed_mod &&
+      millis() - key_pressed_at >= uiGetHoldDurationMs()) {
+    box_shown = true;
+    uiSetKeyBoxOutline(true);
+  }
 
   const bool connected = HidKeyboard.isReady();
   if (connected == last_reported_connected) {
