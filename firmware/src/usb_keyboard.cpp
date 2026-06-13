@@ -79,16 +79,7 @@ class KeyboardParser : public KeyboardReportParser {
     if (label[0] == '\0') {
       return;
     }
-    displayed_key_ = key;
     uiSetPressedKey(label);
-  }
-
-  void OnKeyUp(uint8_t mod, uint8_t key) override {
-    (void)mod;
-    if (key == displayed_key_) {
-      displayed_key_ = 0;
-      uiSetPressedKey(nullptr);
-    }
   }
 
  private:
@@ -116,8 +107,6 @@ class KeyboardParser : public KeyboardReportParser {
 
     out[0] = '\0';
   }
-
-  uint8_t displayed_key_ = 0;
 };
 
 KeyboardParser keyboard_parser;
