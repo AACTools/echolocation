@@ -1,12 +1,15 @@
 #include "usb_keyboard.h"
 
-#include "ui.h"
+#include "computer_output.h"
 #include "key_audio.h"
+#include "ui.h"
 
 #include <Arduino.h>
 #include <SPI.h>
 #include <Usb.h>
 #include <hidboot.h>
+
+#include <string.h>
 
 namespace {
 
@@ -24,6 +27,7 @@ uint8_t held_key = 0;
 uint8_t held_mod = 0;
 unsigned long key_pressed_at = 0;
 bool box_shown = false;
+bool key_sent_to_computer = false;
 
 const char* hidKeyName(uint8_t key) {
   switch (key) {
@@ -80,6 +84,58 @@ const char* hidKeyName(uint8_t key) {
 
 class KeyboardParser : public KeyboardReportParser {
  public:
+  void Parse(USBHID* hid, bool /*is_rpt_id*/, uint8_t len, uint8_t* buf) override {
+    uint8_t normalized[8] = {};
+
+    const bool has_report_id =
+        len > 8 || (len >= 8 && buf[0] != 0 && buf[2] == 0 && buf[3] != 0);
+
+    if (has_report_id) {
+      normalized[0] = buf[1];
+      normalized[1] = buf[2];
+      for (uint8_t i = 0; i < 6; ++i) {
+        const uint8_t src = static_cast<uint8_t>(3 + i);
+        normalized[static_cast<uint8_t>(2 + i)] = src < len ? buf[src] : 0;
+      }
+    } else {
+      const uint8_t copy_len = len < 8 ? len : 8;
+      memcpy(normalized, buf, copy_len);
+    }
+
+    if (normalized[2] == 1) {
+      return;
+    }
+
+    if (prevState.bInfo[0] != normalized[0]) {
+      OnControlKeysChanged(prevState.bInfo[0], normalized[0]);
+    }
+
+    for (uint8_t i = 2; i < 8; i++) {
+      bool down = false;
+      bool up = false;
+
+      for (uint8_t j = 2; j < 8; j++) {
+        if (normalized[i] == prevState.bInfo[j] && normalized[i] != 1) {
+          down = true;
+        }
+        if (normalized[j] == prevState.bInfo[i] && prevState.bInfo[i] != 1) {
+          up = true;
+        }
+      }
+      if (!down) {
+        HandleLockingKeys(hid, normalized[i]);
+        OnKeyDown(normalized[0], normalized[i]);
+      }
+      if (!up) {
+        OnKeyUp(prevState.bInfo[0], prevState.bInfo[i]);
+      }
+    }
+
+    for (uint8_t i = 0; i < 8; i++) {
+      prevState.bInfo[i] = normalized[i];
+    }
+  }
+
   void OnKeyDown(uint8_t mod, uint8_t key) override {
     char label[16];
     keyToLabel(mod, key, label, sizeof(label));
@@ -92,6 +148,7 @@ class KeyboardParser : public KeyboardReportParser {
       displayed_key = key;
       displayed_mod = mod;
       box_shown = false;
+      key_sent_to_computer = false;
       uiSetKeyBoxOutline(false);
       uiSetPressedKey(label);
     }
@@ -102,6 +159,7 @@ class KeyboardParser : public KeyboardReportParser {
       key_pressed_at = millis();
       if (!is_new_key) {
         box_shown = false;
+        key_sent_to_computer = false;
         uiSetKeyBoxOutline(false);
       }
     }
@@ -197,6 +255,10 @@ void usbKeyboardTick() {
       millis() - key_pressed_at >= uiGetHoldDurationMs()) {
     box_shown = true;
     uiSetKeyBoxOutline(true);
+    if (!key_sent_to_computer) {
+      computerOutputSendKey(held_mod, held_key);
+      key_sent_to_computer = true;
+    }
   }
 
   const bool connected = HidKeyboard.isReady();

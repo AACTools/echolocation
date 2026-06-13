@@ -2,6 +2,7 @@
 #include <M5Unified.h>
 
 #include "device_settings_store.h"
+#include "computer_output.h"
 #include "key_audio.h"
 #include "lvgl_port.h"
 #include "ui.h"
@@ -34,6 +35,7 @@ void setup() {
 
   lvglPortInit();
   uiInit();
+  computerOutputBegin();
   deviceSettingsLoad();
   usbKeyboardBegin();
   keyAudioRefresh();
@@ -44,6 +46,9 @@ void loop() {
   M5.update();
   updateBatteryStatus();
   lvglPortTick();
+  computerOutputTick();
+  uiRefreshComputerConnectionStatus();
+  uiRefreshKeyboardConnectionStatus();
   usbKeyboardTick();
   delay(5);
 }

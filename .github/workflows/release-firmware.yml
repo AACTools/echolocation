@@ -43,6 +43,11 @@ jobs:
           Flash with PlatformIO (recommended):
             cd firmware && pio run -e m5stack-cores3 -t upload
 
+          If upload fails (device is acting as a USB keyboard), put the CoreS3 in
+          download mode first: long-press the RST button until the screen goes blank,
+          then run the upload command again. Pick the USB serial port shown in
+          PlatformIO's status bar if prompted.
+
           Or with esptool (ESP32-S3; replace PORT with your serial device):
             esptool.py --chip esp32s3 -p PORT write_flash \
               0x0 bootloader.bin \

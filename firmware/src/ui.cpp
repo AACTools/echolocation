@@ -1,15 +1,27 @@
 #include "ui.h"
 
+#include "computer_output.h"
 #include "device_settings_store.h"
 #include "key_audio.h"
+#include "usb_keyboard.h"
 
 #include <lvgl.h>
 
 #include <stdio.h>
+#include <string.h>
 
 namespace {
 
-enum class Screen { kMain, kSettings, kDebug, kVolume, kHoldDuration };
+enum class Screen {
+  kMain,
+  kSettings,
+  kDebug,
+  kVolume,
+  kHoldDuration,
+  kBluetooth,
+  kComputerConnection,
+  kKeyboardConnection,
+};
 
 const lv_color_t kBgColor = lv_color_hex(0x1A1A1A);
 const lv_color_t kHeaderColor = lv_color_hex(0x2A2A2A);
@@ -23,6 +35,9 @@ lv_obj_t* screen_settings = nullptr;
 lv_obj_t* screen_debug = nullptr;
 lv_obj_t* screen_volume = nullptr;
 lv_obj_t* screen_hold_duration = nullptr;
+lv_obj_t* screen_bluetooth = nullptr;
+lv_obj_t* screen_computer_connection = nullptr;
+lv_obj_t* screen_keyboard_connection = nullptr;
 lv_obj_t* keyboard_icon = nullptr;
 lv_obj_t* pressed_key_box = nullptr;
 lv_obj_t* pressed_key_label = nullptr;
@@ -31,12 +46,23 @@ lv_obj_t* volume_slider = nullptr;
 lv_obj_t* volume_value_label = nullptr;
 lv_obj_t* hold_duration_slider = nullptr;
 lv_obj_t* hold_duration_value_label = nullptr;
+lv_obj_t* computer_status_label = nullptr;
+lv_obj_t* computer_usb_status_label = nullptr;
+lv_obj_t* computer_ble_status_label = nullptr;
+lv_obj_t* computer_ble_switch = nullptr;
+lv_obj_t* computer_name_textarea = nullptr;
+lv_obj_t* keyboard_status_label = nullptr;
+lv_obj_t* keyboard_usb_status_label = nullptr;
+lv_obj_t* keyboard_name_textarea = nullptr;
 
 constexpr size_t kMaxBatteryLabels = 8;
 lv_obj_t* battery_labels[kMaxBatteryLabels] = {};
 size_t battery_label_count = 0;
 
 uint32_t hold_duration_ms = kDefaultHoldDurationMs;  // from device_settings_store.h
+bool computer_ble_enabled = false;
+char ble_computer_name[16] = "echolocation";
+char ble_keyboard_name[16] = "";
 
 void showScreen(Screen screen);
 
@@ -130,6 +156,15 @@ void showScreen(Screen screen) {
       break;
     case Screen::kHoldDuration:
       target = screen_hold_duration;
+      break;
+    case Screen::kBluetooth:
+      target = screen_bluetooth;
+      break;
+    case Screen::kComputerConnection:
+      target = screen_computer_connection;
+      break;
+    case Screen::kKeyboardConnection:
+      target = screen_keyboard_connection;
       break;
   }
   if (target != nullptr) {
@@ -300,6 +335,124 @@ void onHoldDurationSliderChanged(lv_event_t* event) {
   updateHoldDurationLabel();
 }
 
+void refreshComputerConnectionStatus() {
+  if (computer_usb_status_label == nullptr || computer_ble_status_label == nullptr) {
+    return;
+  }
+
+  if (computerOutputUsbReady()) {
+    lv_label_set_text(computer_usb_status_label, "USB: Connected");
+    lv_obj_set_style_text_color(computer_usb_status_label, lv_color_hex(0x44DD66), 0);
+  } else {
+    lv_label_set_text(computer_usb_status_label, "USB: Plug in USB-C cable");
+    lv_obj_set_style_text_color(computer_usb_status_label, lv_color_hex(0xAAAAAA), 0);
+  }
+
+  if (!computer_ble_enabled) {
+    lv_label_set_text(computer_ble_status_label, "Bluetooth: Disabled");
+    lv_obj_set_style_text_color(computer_ble_status_label, lv_color_hex(0xAAAAAA), 0);
+  } else if (computerOutputBleConnected()) {
+    lv_label_set_text(computer_ble_status_label, "Bluetooth: Connected");
+    lv_obj_set_style_text_color(computer_ble_status_label, lv_color_hex(0x44DD66), 0);
+  } else if (computerOutputBleAdvertising()) {
+    lv_label_set_text(computer_ble_status_label, "Bluetooth: Pairing...");
+    lv_obj_set_style_text_color(computer_ble_status_label, kAccentColor, 0);
+  } else {
+    lv_label_set_text(computer_ble_status_label, "Bluetooth: Not advertising");
+    lv_obj_set_style_text_color(computer_ble_status_label, lv_color_hex(0xFFAA00), 0);
+  }
+}
+
+void refreshKeyboardConnectionStatus() {
+  if (keyboard_usb_status_label == nullptr) {
+    return;
+  }
+
+  if (usbKeyboardIsConnected()) {
+    lv_label_set_text(keyboard_usb_status_label, "USB keyboard: Connected");
+    lv_obj_set_style_text_color(keyboard_usb_status_label, lv_color_hex(0x44DD66), 0);
+  } else {
+    lv_label_set_text(keyboard_usb_status_label, "USB keyboard: Not connected");
+    lv_obj_set_style_text_color(keyboard_usb_status_label, lv_color_hex(0xAAAAAA), 0);
+  }
+}
+
+void onBluetoothMenuClicked(lv_event_t* event) {
+  (void)event;
+  showScreen(Screen::kBluetooth);
+}
+
+void onComputerConnectionMenuClicked(lv_event_t* event) {
+  (void)event;
+  if (computer_name_textarea != nullptr) {
+    lv_textarea_set_text(computer_name_textarea, ble_computer_name);
+  }
+  if (computer_ble_switch != nullptr) {
+    if (computer_ble_enabled) {
+      lv_obj_add_state(computer_ble_switch, LV_STATE_CHECKED);
+    } else {
+      lv_obj_remove_state(computer_ble_switch, LV_STATE_CHECKED);
+    }
+  }
+  refreshComputerConnectionStatus();
+  showScreen(Screen::kComputerConnection);
+}
+
+void onKeyboardConnectionMenuClicked(lv_event_t* event) {
+  (void)event;
+  if (keyboard_name_textarea != nullptr) {
+    lv_textarea_set_text(keyboard_name_textarea, ble_keyboard_name);
+  }
+  refreshKeyboardConnectionStatus();
+  showScreen(Screen::kKeyboardConnection);
+}
+
+void onComputerBleSwitchChanged(lv_event_t* event) {
+  lv_obj_t* sw = lv_event_get_target_obj(event);
+  computer_ble_enabled = lv_obj_has_state(sw, LV_STATE_CHECKED);
+  deviceSettingsSaveComputerBleEnabled(computer_ble_enabled);
+  refreshComputerConnectionStatus();
+}
+
+void onComputerNameChanged(lv_event_t* event) {
+  lv_obj_t* textarea = lv_event_get_target_obj(event);
+  const char* text = lv_textarea_get_text(textarea);
+  if (text == nullptr) {
+    return;
+  }
+  strncpy(ble_computer_name, text, sizeof(ble_computer_name) - 1);
+  ble_computer_name[sizeof(ble_computer_name) - 1] = '\0';
+  deviceSettingsSaveBleComputerName(ble_computer_name);
+}
+
+void onComputerStartPairingClicked(lv_event_t* event) {
+  (void)event;
+  computer_ble_enabled = true;
+  deviceSettingsSaveComputerBleEnabled(true);
+  if (computer_ble_switch != nullptr) {
+    lv_obj_add_state(computer_ble_switch, LV_STATE_CHECKED);
+  }
+  computerOutputBleStartPairing();
+  refreshComputerConnectionStatus();
+}
+
+void onComputerStopPairingClicked(lv_event_t* event) {
+  (void)event;
+  computerOutputBleStopPairing();
+  refreshComputerConnectionStatus();
+}
+
+void onKeyboardNameChanged(lv_event_t* event) {
+  lv_obj_t* textarea = lv_event_get_target_obj(event);
+  const char* text = lv_textarea_get_text(textarea);
+  if (text == nullptr) {
+    return;
+  }
+  strncpy(ble_keyboard_name, text, sizeof(ble_keyboard_name) - 1);
+  ble_keyboard_name[sizeof(ble_keyboard_name) - 1] = '\0';
+  deviceSettingsSaveBleKeyboardName(ble_keyboard_name);
+}
+
 void buildScreens() {
   screen_main = lv_obj_create(nullptr);
   styleScreen(screen_main);
@@ -353,8 +506,9 @@ void buildScreens() {
   styleScreen(screen_settings);
   createHeader(screen_settings, "Settings", Screen::kMain);
   createMenuButton(screen_settings, "Debug", 56, onDebugMenuClicked);
-  createMenuButton(screen_settings, "Volume", 108, onVolumeMenuClicked);
-  createMenuButton(screen_settings, "Hold Duration", 160, onHoldDurationMenuClicked);
+  createMenuButton(screen_settings, "Volume", 100, onVolumeMenuClicked);
+  createMenuButton(screen_settings, "Hold Duration", 144, onHoldDurationMenuClicked);
+  createMenuButton(screen_settings, "Bluetooth", 188, onBluetoothMenuClicked);
 
   screen_debug = lv_obj_create(nullptr);
   styleScreen(screen_debug);
@@ -419,6 +573,109 @@ void buildScreens() {
   lv_obj_add_event_cb(hold_duration_slider, onHoldDurationSliderChanged,
                       LV_EVENT_VALUE_CHANGED, nullptr);
   updateHoldDurationLabel();
+
+  screen_bluetooth = lv_obj_create(nullptr);
+  styleScreen(screen_bluetooth);
+  createHeader(screen_bluetooth, "Bluetooth", Screen::kSettings);
+  createMenuButton(screen_bluetooth, "Computer Connection", 56,
+                   onComputerConnectionMenuClicked);
+  createMenuButton(screen_bluetooth, "Keyboard Connection", 100,
+                   onKeyboardConnectionMenuClicked);
+
+  screen_computer_connection = lv_obj_create(nullptr);
+  styleScreen(screen_computer_connection);
+  createHeader(screen_computer_connection, "Computer", Screen::kBluetooth);
+
+  computer_status_label = lv_label_create(screen_computer_connection);
+  lv_label_set_text(computer_status_label, "Send keypresses when hold completes");
+  lv_obj_set_style_text_font(computer_status_label, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(computer_status_label, lv_color_hex(0xAAAAAA), 0);
+  lv_obj_align(computer_status_label, LV_ALIGN_TOP_LEFT, 12, 48);
+
+  computer_usb_status_label = lv_label_create(screen_computer_connection);
+  lv_label_set_text(computer_usb_status_label, "USB: --");
+  lv_obj_set_style_text_font(computer_usb_status_label, &lv_font_montserrat_14, 0);
+  lv_obj_align(computer_usb_status_label, LV_ALIGN_TOP_LEFT, 12, 72);
+
+  computer_ble_status_label = lv_label_create(screen_computer_connection);
+  lv_label_set_text(computer_ble_status_label, "Bluetooth: --");
+  lv_obj_set_style_text_font(computer_ble_status_label, &lv_font_montserrat_14, 0);
+  lv_obj_align(computer_ble_status_label, LV_ALIGN_TOP_LEFT, 12, 92);
+
+  lv_obj_t* ble_enable_label = lv_label_create(screen_computer_connection);
+  lv_label_set_text(ble_enable_label, "Enable Bluetooth");
+  lv_obj_set_style_text_font(ble_enable_label, &lv_font_montserrat_14, 0);
+  lv_obj_align(ble_enable_label, LV_ALIGN_TOP_LEFT, 12, 118);
+
+  computer_ble_switch = lv_switch_create(screen_computer_connection);
+  lv_obj_align(computer_ble_switch, LV_ALIGN_TOP_RIGHT, -12, 114);
+  lv_obj_add_event_cb(computer_ble_switch, onComputerBleSwitchChanged,
+                      LV_EVENT_VALUE_CHANGED, nullptr);
+
+  lv_obj_t* name_label = lv_label_create(screen_computer_connection);
+  lv_label_set_text(name_label, "Bluetooth name");
+  lv_obj_set_style_text_font(name_label, &lv_font_montserrat_14, 0);
+  lv_obj_align(name_label, LV_ALIGN_TOP_LEFT, 12, 148);
+
+  computer_name_textarea = lv_textarea_create(screen_computer_connection);
+  lv_obj_set_size(computer_name_textarea, 296, 36);
+  lv_obj_align(computer_name_textarea, LV_ALIGN_TOP_MID, 0, 168);
+  lv_textarea_set_one_line(computer_name_textarea, true);
+  lv_textarea_set_max_length(computer_name_textarea, 15);
+  lv_textarea_set_text(computer_name_textarea, kDefaultBleComputerName);
+  lv_obj_add_event_cb(computer_name_textarea, onComputerNameChanged,
+                      LV_EVENT_VALUE_CHANGED, nullptr);
+
+  lv_obj_t* pair_button = lv_btn_create(screen_computer_connection);
+  lv_obj_set_size(pair_button, 140, 32);
+  lv_obj_align(pair_button, LV_ALIGN_BOTTOM_LEFT, 12, -12);
+  lv_obj_set_style_radius(pair_button, 8, 0);
+  lv_obj_set_style_bg_color(pair_button, kAccentColor, 0);
+  lv_obj_add_event_cb(pair_button, onComputerStartPairingClicked, LV_EVENT_CLICKED,
+                      nullptr);
+  lv_obj_t* pair_label = lv_label_create(pair_button);
+  lv_label_set_text(pair_label, "Start Pairing");
+  lv_obj_center(pair_label);
+
+  lv_obj_t* stop_button = lv_btn_create(screen_computer_connection);
+  lv_obj_set_size(stop_button, 140, 32);
+  lv_obj_align(stop_button, LV_ALIGN_BOTTOM_RIGHT, -12, -12);
+  lv_obj_set_style_radius(stop_button, 8, 0);
+  lv_obj_set_style_bg_color(stop_button, lv_color_hex(0x3A3A3A), 0);
+  lv_obj_add_event_cb(stop_button, onComputerStopPairingClicked, LV_EVENT_CLICKED,
+                      nullptr);
+  lv_obj_t* stop_label = lv_label_create(stop_button);
+  lv_label_set_text(stop_label, "Stop");
+  lv_obj_center(stop_label);
+
+  screen_keyboard_connection = lv_obj_create(nullptr);
+  styleScreen(screen_keyboard_connection);
+  createHeader(screen_keyboard_connection, "Keyboard", Screen::kBluetooth);
+
+  keyboard_status_label = lv_label_create(screen_keyboard_connection);
+  lv_label_set_text(keyboard_status_label, "Connect a keyboard to read keypresses");
+  lv_obj_set_style_text_font(keyboard_status_label, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(keyboard_status_label, lv_color_hex(0xAAAAAA), 0);
+  lv_obj_align(keyboard_status_label, LV_ALIGN_TOP_LEFT, 12, 48);
+
+  keyboard_usb_status_label = lv_label_create(screen_keyboard_connection);
+  lv_label_set_text(keyboard_usb_status_label, "USB keyboard: --");
+  lv_obj_set_style_text_font(keyboard_usb_status_label, &lv_font_montserrat_14, 0);
+  lv_obj_align(keyboard_usb_status_label, LV_ALIGN_TOP_LEFT, 12, 72);
+
+  lv_obj_t* kb_name_label = lv_label_create(screen_keyboard_connection);
+  lv_label_set_text(kb_name_label, "Bluetooth keyboard name");
+  lv_obj_set_style_text_font(kb_name_label, &lv_font_montserrat_14, 0);
+  lv_obj_align(kb_name_label, LV_ALIGN_TOP_LEFT, 12, 108);
+
+  keyboard_name_textarea = lv_textarea_create(screen_keyboard_connection);
+  lv_obj_set_size(keyboard_name_textarea, 296, 36);
+  lv_obj_align(keyboard_name_textarea, LV_ALIGN_TOP_MID, 0, 128);
+  lv_textarea_set_one_line(keyboard_name_textarea, true);
+  lv_textarea_set_max_length(keyboard_name_textarea, 15);
+  lv_textarea_set_placeholder_text(keyboard_name_textarea, "Optional filter");
+  lv_obj_add_event_cb(keyboard_name_textarea, onKeyboardNameChanged,
+                      LV_EVENT_VALUE_CHANGED, nullptr);
 }
 
 }  // namespace
@@ -485,3 +742,40 @@ void uiSetHoldDurationMs(uint32_t ms) {
   }
   updateHoldDurationLabel();
 }
+
+void uiSetBleComputerName(const char* name) {
+  if (name == nullptr) {
+    return;
+  }
+  strncpy(ble_computer_name, name, sizeof(ble_computer_name) - 1);
+  ble_computer_name[sizeof(ble_computer_name) - 1] = '\0';
+  if (computer_name_textarea != nullptr) {
+    lv_textarea_set_text(computer_name_textarea, ble_computer_name);
+  }
+}
+
+void uiSetBleKeyboardName(const char* name) {
+  if (name == nullptr) {
+    return;
+  }
+  strncpy(ble_keyboard_name, name, sizeof(ble_keyboard_name) - 1);
+  ble_keyboard_name[sizeof(ble_keyboard_name) - 1] = '\0';
+  if (keyboard_name_textarea != nullptr) {
+    lv_textarea_set_text(keyboard_name_textarea, ble_keyboard_name);
+  }
+}
+
+void uiSetComputerBleEnabled(bool enabled) {
+  computer_ble_enabled = enabled;
+  if (computer_ble_switch != nullptr) {
+    if (enabled) {
+      lv_obj_add_state(computer_ble_switch, LV_STATE_CHECKED);
+    } else {
+      lv_obj_remove_state(computer_ble_switch, LV_STATE_CHECKED);
+    }
+  }
+}
+
+void uiRefreshComputerConnectionStatus() { refreshComputerConnectionStatus(); }
+
+void uiRefreshKeyboardConnectionStatus() { refreshKeyboardConnectionStatus(); }
