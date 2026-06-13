@@ -1,4 +1,3 @@
 {
-  "en_US": "piper/en_US-lessac-medium.onnx",
-  "en_GB": "piper/en_GB-alba-medium.onnx"
+  "en_GB": "~/models/en_GB-alba-medium.onnx"
 }
