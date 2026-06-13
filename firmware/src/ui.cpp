@@ -32,9 +32,80 @@ lv_obj_t* volume_value_label = nullptr;
 lv_obj_t* hold_duration_slider = nullptr;
 lv_obj_t* hold_duration_value_label = nullptr;
 
+constexpr size_t kMaxBatteryLabels = 8;
+lv_obj_t* battery_labels[kMaxBatteryLabels] = {};
+size_t battery_label_count = 0;
+
 uint32_t hold_duration_ms = kDefaultHoldDurationMs;  // from device_settings_store.h
 
 void showScreen(Screen screen);
+
+void registerBatteryLabel(lv_obj_t* label) {
+  if (battery_label_count < kMaxBatteryLabels) {
+    battery_labels[battery_label_count++] = label;
+  }
+}
+
+const char* batterySymbolForLevel(int percent) {
+  if (percent >= 80) {
+    return LV_SYMBOL_BATTERY_FULL;
+  }
+  if (percent >= 60) {
+    return LV_SYMBOL_BATTERY_3;
+  }
+  if (percent >= 40) {
+    return LV_SYMBOL_BATTERY_2;
+  }
+  if (percent >= 20) {
+    return LV_SYMBOL_BATTERY_1;
+  }
+  return LV_SYMBOL_BATTERY_EMPTY;
+}
+
+void refreshBatteryLabels(int percent, bool charging) {
+  if (percent < 0) {
+    percent = 0;
+  } else if (percent > 100) {
+    percent = 100;
+  }
+
+  const char* symbol = batterySymbolForLevel(percent);
+  char text[32];
+  if (charging) {
+    snprintf(text, sizeof(text), "%s %s %d%%", LV_SYMBOL_CHARGE, symbol, percent);
+  } else {
+    snprintf(text, sizeof(text), "%s %d%%", symbol, percent);
+  }
+
+  lv_color_t color;
+  if (charging) {
+    color = lv_color_hex(0x44DD66);
+  } else if (percent <= 10) {
+    color = lv_color_hex(0xFF4444);
+  } else if (percent <= 20) {
+    color = lv_color_hex(0xFFAA00);
+  } else {
+    color = lv_color_hex(0xAAAAAA);
+  }
+
+  for (size_t i = 0; i < battery_label_count; ++i) {
+    if (battery_labels[i] == nullptr) {
+      continue;
+    }
+    lv_label_set_text(battery_labels[i], text);
+    lv_obj_set_style_text_color(battery_labels[i], color, 0);
+  }
+}
+
+lv_obj_t* createBatteryLabel(lv_obj_t* parent, lv_align_t align, int x_ofs,
+                             int y_ofs) {
+  lv_obj_t* label = lv_label_create(parent);
+  lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+  lv_label_set_text(label, LV_SYMBOL_BATTERY_EMPTY " --%");
+  lv_obj_align(label, align, x_ofs, y_ofs);
+  registerBatteryLabel(label);
+  return label;
+}
 
 void styleScreen(lv_obj_t* screen) {
   lv_obj_set_style_bg_color(screen, kBgColor, 0);
@@ -100,6 +171,8 @@ lv_obj_t* createHeader(lv_obj_t* parent, const char* title, Screen back_to) {
   lv_label_set_text(title_label, title);
   lv_obj_set_style_text_font(title_label, &lv_font_montserrat_16, 0);
   lv_obj_align(title_label, LV_ALIGN_CENTER, 0, 0);
+
+  createBatteryLabel(header, LV_ALIGN_RIGHT_MID, -4, 0);
 
   return header;
 }
@@ -237,6 +310,8 @@ void buildScreens() {
   lv_obj_set_style_text_color(keyboard_icon, kAccentColor, 0);
   lv_obj_align(keyboard_icon, LV_ALIGN_TOP_LEFT, 12, 16);
   lv_obj_add_flag(keyboard_icon, LV_OBJ_FLAG_HIDDEN);
+
+  createBatteryLabel(screen_main, LV_ALIGN_TOP_RIGHT, -12, 16);
 
   lv_obj_t* title = lv_label_create(screen_main);
   lv_label_set_text(title, "echolocation");
@@ -390,6 +465,10 @@ void uiSetVolume(uint8_t volume) {
     lv_slider_set_value(volume_slider, volume, LV_ANIM_OFF);
   }
   updateVolumeLabel();
+}
+
+void uiSetBattery(int percent, bool charging) {
+  refreshBatteryLabels(percent, charging);
 }
 
 uint32_t uiGetHoldDurationMs() { return hold_duration_ms; }
