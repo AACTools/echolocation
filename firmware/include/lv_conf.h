@@ -22,6 +22,7 @@
 
 #define LV_USE_BTN 1
 #define LV_USE_LABEL 1
+#define LV_USE_SLIDER 1
 
 #define LV_FONT_MONTSERRAT_14 1
 #define LV_FONT_MONTSERRAT_16 1

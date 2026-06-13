@@ -8,7 +8,7 @@
 
 namespace {
 
-enum class Screen { kMain, kSettings };
+enum class Screen { kMain, kSettings, kDebug, kVolume };
 
 const lv_color_t kBgColor = lv_color_hex(0x1A1A1A);
 const lv_color_t kHeaderColor = lv_color_hex(0x2A2A2A);
@@ -16,9 +16,15 @@ const lv_color_t kAccentColor = lv_color_hex(0x0066FF);
 
 lv_obj_t* screen_main = nullptr;
 lv_obj_t* screen_settings = nullptr;
+lv_obj_t* screen_debug = nullptr;
+lv_obj_t* screen_volume = nullptr;
 lv_obj_t* keyboard_icon = nullptr;
 lv_obj_t* pressed_key_label = nullptr;
 lv_obj_t* audio_debug_label = nullptr;
+lv_obj_t* volume_slider = nullptr;
+lv_obj_t* volume_value_label = nullptr;
+
+void showScreen(Screen screen);
 
 void styleScreen(lv_obj_t* screen) {
   lv_obj_set_style_bg_color(screen, kBgColor, 0);
@@ -27,8 +33,21 @@ void styleScreen(lv_obj_t* screen) {
 }
 
 void showScreen(Screen screen) {
-  lv_obj_t* target =
-      (screen == Screen::kMain) ? screen_main : screen_settings;
+  lv_obj_t* target = nullptr;
+  switch (screen) {
+    case Screen::kMain:
+      target = screen_main;
+      break;
+    case Screen::kSettings:
+      target = screen_settings;
+      break;
+    case Screen::kDebug:
+      target = screen_debug;
+      break;
+    case Screen::kVolume:
+      target = screen_volume;
+      break;
+  }
   if (target != nullptr) {
     lv_screen_load(target);
   }
@@ -72,6 +91,28 @@ lv_obj_t* createHeader(lv_obj_t* parent, const char* title, Screen back_to) {
   return header;
 }
 
+lv_obj_t* createMenuButton(lv_obj_t* parent, const char* label, int y,
+                           lv_event_cb_t on_click) {
+  lv_obj_t* button = lv_btn_create(parent);
+  lv_obj_set_size(button, 296, 44);
+  lv_obj_align(button, LV_ALIGN_TOP_MID, 0, y);
+  lv_obj_set_style_radius(button, 8, 0);
+  lv_obj_set_style_bg_color(button, lv_color_hex(0x2A2A2A), 0);
+  lv_obj_add_event_cb(button, on_click, LV_EVENT_CLICKED, nullptr);
+
+  lv_obj_t* button_label = lv_label_create(button);
+  lv_label_set_text(button_label, label);
+  lv_obj_set_style_text_font(button_label, &lv_font_montserrat_16, 0);
+  lv_obj_align(button_label, LV_ALIGN_LEFT_MID, 12, 0);
+
+  lv_obj_t* chevron = lv_label_create(button);
+  lv_label_set_text(chevron, LV_SYMBOL_RIGHT);
+  lv_obj_set_style_text_color(chevron, lv_color_hex(0x888888), 0);
+  lv_obj_align(chevron, LV_ALIGN_RIGHT_MID, -12, 0);
+
+  return button;
+}
+
 void refreshAudioDebugLabel() {
   if (audio_debug_label == nullptr) {
     return;
@@ -99,6 +140,18 @@ void refreshAudioDebugLabel() {
   lv_label_set_text(audio_debug_label, text);
 }
 
+void updateVolumeLabel() {
+  if (volume_slider == nullptr || volume_value_label == nullptr) {
+    return;
+  }
+
+  const int32_t value = lv_slider_get_value(volume_slider);
+  const int percent = (value * 100) / 255;
+  char text[24];
+  snprintf(text, sizeof(text), "Volume: %d%%", percent);
+  lv_label_set_text(volume_value_label, text);
+}
+
 void onRefreshAudioDebugClicked(lv_event_t* event) {
   (void)event;
   keyAudioRefresh();
@@ -107,8 +160,29 @@ void onRefreshAudioDebugClicked(lv_event_t* event) {
 
 void onSettingsClicked(lv_event_t* event) {
   (void)event;
-  refreshAudioDebugLabel();
   showScreen(Screen::kSettings);
+}
+
+void onDebugMenuClicked(lv_event_t* event) {
+  (void)event;
+  refreshAudioDebugLabel();
+  showScreen(Screen::kDebug);
+}
+
+void onVolumeMenuClicked(lv_event_t* event) {
+  (void)event;
+  if (volume_slider != nullptr) {
+    lv_slider_set_value(volume_slider, keyAudioGetVolume(), LV_ANIM_OFF);
+  }
+  updateVolumeLabel();
+  showScreen(Screen::kVolume);
+}
+
+void onVolumeSliderChanged(lv_event_t* event) {
+  lv_obj_t* slider = lv_event_get_target_obj(event);
+  const int32_t value = lv_slider_get_value(slider);
+  keyAudioSetVolume(static_cast<uint8_t>(value));
+  updateVolumeLabel();
 }
 
 void buildScreens() {
@@ -150,22 +224,22 @@ void buildScreens() {
   screen_settings = lv_obj_create(nullptr);
   styleScreen(screen_settings);
   createHeader(screen_settings, "Settings", Screen::kMain);
+  createMenuButton(screen_settings, "Debug", 56, onDebugMenuClicked);
+  createMenuButton(screen_settings, "Volume", 108, onVolumeMenuClicked);
 
-  lv_obj_t* debug_title = lv_label_create(screen_settings);
-  lv_label_set_text(debug_title, "Audio debug");
-  lv_obj_set_style_text_font(debug_title, &lv_font_montserrat_16, 0);
-  lv_obj_set_style_text_color(debug_title, lv_color_white(), 0);
-  lv_obj_align(debug_title, LV_ALIGN_TOP_LEFT, 12, 48);
+  screen_debug = lv_obj_create(nullptr);
+  styleScreen(screen_debug);
+  createHeader(screen_debug, "Debug", Screen::kSettings);
 
-  audio_debug_label = lv_label_create(screen_settings);
+  audio_debug_label = lv_label_create(screen_debug);
   lv_label_set_text(audio_debug_label, "Checking...");
   lv_obj_set_style_text_font(audio_debug_label, &lv_font_montserrat_14, 0);
   lv_obj_set_style_text_color(audio_debug_label, lv_color_white(), 0);
   lv_obj_set_width(audio_debug_label, 296);
   lv_label_set_long_mode(audio_debug_label, LV_LABEL_LONG_WRAP);
-  lv_obj_align(audio_debug_label, LV_ALIGN_TOP_LEFT, 12, 72);
+  lv_obj_align(audio_debug_label, LV_ALIGN_TOP_LEFT, 12, 52);
 
-  lv_obj_t* refresh_button = lv_btn_create(screen_settings);
+  lv_obj_t* refresh_button = lv_btn_create(screen_debug);
   lv_obj_set_size(refresh_button, 120, 36);
   lv_obj_align(refresh_button, LV_ALIGN_BOTTOM_MID, 0, -12);
   lv_obj_set_style_radius(refresh_button, 8, 0);
@@ -176,6 +250,25 @@ void buildScreens() {
   lv_obj_t* refresh_label = lv_label_create(refresh_button);
   lv_label_set_text(refresh_label, "Refresh");
   lv_obj_center(refresh_label);
+
+  screen_volume = lv_obj_create(nullptr);
+  styleScreen(screen_volume);
+  createHeader(screen_volume, "Volume", Screen::kSettings);
+
+  volume_value_label = lv_label_create(screen_volume);
+  lv_label_set_text(volume_value_label, "Volume: 0%");
+  lv_obj_set_style_text_font(volume_value_label, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_color(volume_value_label, lv_color_white(), 0);
+  lv_obj_align(volume_value_label, LV_ALIGN_CENTER, 0, -24);
+
+  volume_slider = lv_slider_create(screen_volume);
+  lv_obj_set_size(volume_slider, 260, 12);
+  lv_obj_align(volume_slider, LV_ALIGN_CENTER, 0, 16);
+  lv_slider_set_range(volume_slider, 0, 255);
+  lv_slider_set_value(volume_slider, keyAudioGetVolume(), LV_ANIM_OFF);
+  lv_obj_add_event_cb(volume_slider, onVolumeSliderChanged, LV_EVENT_VALUE_CHANGED,
+                      nullptr);
+  updateVolumeLabel();
 }
 
 }  // namespace

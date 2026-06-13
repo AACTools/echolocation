@@ -180,3 +180,7 @@ void keyAudioPlayForLabel(const char* label) {
   M5.Speaker.stop();
   M5.Speaker.playWav(wav_buffer, file_size, 1, -1, true);
 }
+
+void keyAudioSetVolume(uint8_t volume) { M5.Speaker.setVolume(volume); }
+
+uint8_t keyAudioGetVolume() { return M5.Speaker.getVolume(); }
