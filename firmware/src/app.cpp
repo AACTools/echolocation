@@ -38,7 +38,7 @@ HoldDetector hold_detector;
 bool sd_ready = false;
 
 constexpr uint32_t kLvglTickIntervalMs = 5;
-constexpr uint32_t kUsbKeyboardTickIntervalMs = 2;
+constexpr uint32_t kUsbKeyboardTickIntervalMs = 0;
 constexpr uint32_t kBleKeyboardTickIntervalMs = 5;
 constexpr uint32_t kComputerOutputTickIntervalMs = 5;
 
@@ -437,6 +437,7 @@ void App::setup() {
     sd_ready = false;
   } else {
     sd_ready = true;
+    speech.preloadFromSd();
     clearUiError();
   }
 #endif

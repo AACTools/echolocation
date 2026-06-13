@@ -113,7 +113,7 @@ void UsbKeyboardSource::begin(KeyboardEventCallback callback) {
     hid_ready_ = false;
     return;
   }
-  delay(200);
+  delay(10);
   usb_host_shield::HidKeyboard.SetReportParser(0, &usb_host_shield::KeyboardParser);
   connected_ = false;
   hid_ready_ = false;
