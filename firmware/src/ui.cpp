@@ -13,6 +13,7 @@ const lv_color_t kAccentColor = lv_color_hex(0x0066FF);
 lv_obj_t* screen_main = nullptr;
 lv_obj_t* screen_settings = nullptr;
 lv_obj_t* keyboard_icon = nullptr;
+lv_obj_t* pressed_key_label = nullptr;
 
 void styleScreen(lv_obj_t* screen) {
   lv_obj_set_style_bg_color(screen, kBgColor, 0);
@@ -88,6 +89,13 @@ void buildScreens() {
   lv_obj_set_style_text_color(title, lv_color_white(), 0);
   lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 16);
 
+  pressed_key_label = lv_label_create(screen_main);
+  lv_label_set_text(pressed_key_label, "");
+  lv_obj_set_style_text_font(pressed_key_label, &lv_font_montserrat_48, 0);
+  lv_obj_set_style_text_color(pressed_key_label, lv_color_white(), 0);
+  lv_obj_align(pressed_key_label, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_add_flag(pressed_key_label, LV_OBJ_FLAG_HIDDEN);
+
   lv_obj_t* settings_button = lv_btn_create(screen_main);
   lv_obj_set_size(settings_button, 100, 40);
   lv_obj_align(settings_button, LV_ALIGN_BOTTOM_RIGHT, -12, -12);
@@ -121,4 +129,17 @@ void uiSetKeyboardConnected(bool connected) {
   } else {
     lv_obj_add_flag(keyboard_icon, LV_OBJ_FLAG_HIDDEN);
   }
+}
+
+void uiSetPressedKey(const char* label) {
+  if (pressed_key_label == nullptr) {
+    return;
+  }
+  if (label == nullptr || label[0] == '\0') {
+    lv_label_set_text(pressed_key_label, "");
+    lv_obj_add_flag(pressed_key_label, LV_OBJ_FLAG_HIDDEN);
+    return;
+  }
+  lv_label_set_text(pressed_key_label, label);
+  lv_obj_remove_flag(pressed_key_label, LV_OBJ_FLAG_HIDDEN);
 }
