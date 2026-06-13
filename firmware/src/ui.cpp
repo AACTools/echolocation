@@ -12,6 +12,7 @@ const lv_color_t kAccentColor = lv_color_hex(0x0066FF);
 
 lv_obj_t* screen_main = nullptr;
 lv_obj_t* screen_settings = nullptr;
+lv_obj_t* keyboard_icon = nullptr;
 
 void styleScreen(lv_obj_t* screen) {
   lv_obj_set_style_bg_color(screen, kBgColor, 0);
@@ -74,9 +75,17 @@ void buildScreens() {
   screen_main = lv_obj_create(nullptr);
   styleScreen(screen_main);
 
+  keyboard_icon = lv_label_create(screen_main);
+  lv_label_set_text(keyboard_icon, LV_SYMBOL_KEYBOARD);
+  lv_obj_set_style_text_font(keyboard_icon, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_color(keyboard_icon, kAccentColor, 0);
+  lv_obj_align(keyboard_icon, LV_ALIGN_TOP_LEFT, 12, 16);
+  lv_obj_add_flag(keyboard_icon, LV_OBJ_FLAG_HIDDEN);
+
   lv_obj_t* title = lv_label_create(screen_main);
   lv_label_set_text(title, "echolocation");
   lv_obj_set_style_text_font(title, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_color(title, lv_color_white(), 0);
   lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 16);
 
   lv_obj_t* settings_button = lv_btn_create(screen_main);
@@ -101,4 +110,15 @@ void buildScreens() {
 void uiInit() {
   buildScreens();
   showScreen(Screen::kMain);
+}
+
+void uiSetKeyboardConnected(bool connected) {
+  if (keyboard_icon == nullptr) {
+    return;
+  }
+  if (connected) {
+    lv_obj_remove_flag(keyboard_icon, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_add_flag(keyboard_icon, LV_OBJ_FLAG_HIDDEN);
+  }
 }

@@ -3,6 +3,7 @@
 
 #include "lvgl_port.h"
 #include "ui.h"
+#include "usb_keyboard.h"
 
 void setup() {
   auto cfg = M5.config();
@@ -11,10 +12,12 @@ void setup() {
 
   lvglPortInit();
   uiInit();
+  usbKeyboardBegin();
 }
 
 void loop() {
   M5.update();
   lvglPortTick();
+  usbKeyboardTick();
   delay(5);
 }
