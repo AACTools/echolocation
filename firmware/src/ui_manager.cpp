@@ -1,5 +1,6 @@
 #include "ui_manager.h"
 
+#include "latency_log.h"
 #include "lvgl_port.h"
 
 #ifndef NATIVE_TEST
@@ -88,6 +89,7 @@ struct ImmediateKeyLabelRequest {
 void onImmediateKeyLabelAsync(void* user_data) {
   auto* request = static_cast<ImmediateKeyLabelRequest*>(user_data);
   if (request != nullptr && request->manager != nullptr) {
+    latencyLog("ui", "label applied: %s", request->label);
     request->manager->setCurrentKeyLabel(request->label);
   }
   delete request;

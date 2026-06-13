@@ -1,6 +1,7 @@
 #include "speech_player.h"
 
 #include "key_event.h"
+#include "latency_log.h"
 
 #ifndef NATIVE_TEST
 #include <M5Unified.h>
@@ -276,8 +277,19 @@ void SpeechPlayer::preloadFromSd(PreloadProgressCallback on_progress) {
 
 void SpeechPlayer::speakKey(uint8_t hid_usage) {
 #ifndef NATIVE_TEST
-  if (!cachedAudio(hid_usage) && !loadIntoCache(hid_usage)) {
-    return;
+  const bool cache_hit = cachedAudio(hid_usage) != nullptr;
+  latencyLog("speech", "speakKey 0x%02X cache_hit=%s", hid_usage,
+             cache_hit ? "yes" : "no");
+
+  if (!cache_hit) {
+    const uint32_t load_start = millis();
+    if (!loadIntoCache(hid_usage)) {
+      latencyLog("speech", "loadIntoCache failed after %lums",
+                 static_cast<unsigned long>(millis() - load_start));
+      return;
+    }
+    latencyLog("speech", "loadIntoCache ok in %lums",
+               static_cast<unsigned long>(millis() - load_start));
   }
 
   const CachedAudio* cached = cachedAudio(hid_usage);
@@ -286,15 +298,20 @@ void SpeechPlayer::speakKey(uint8_t hid_usage) {
   }
 
   M5.Speaker.setVolume(volume_percent_);
+  const uint32_t play_start = millis();
   if (!M5.Speaker.playRaw(cached->pcm_data, cached->sample_count,
                           cached->sample_rate, cached->stereo,
                           /*repeat=*/1, /*channel=*/-1,
                           /*stop_current_sound=*/true)) {
+    latencyLog("speech", "playRaw failed after %lums",
+               static_cast<unsigned long>(millis() - play_start));
     if (on_error_) {
       on_error_("Could not play audio file");
     }
   } else {
     playing_ = true;
+    latencyLog("speech", "playRaw started in %lums", 
+               static_cast<unsigned long>(millis() - play_start));
   }
 #else
   (void)hid_usage;

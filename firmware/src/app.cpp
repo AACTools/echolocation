@@ -10,6 +10,7 @@
 #include "device_settings_store.h"
 #include "hold_detector.h"
 #include "key_event.h"
+#include "latency_log.h"
 #include "lvgl_port.h"
 #include "speech_player.h"
 #include "ui_manager.h"
@@ -412,11 +413,28 @@ void workerTaskMain(void* parameter) {
 
 void App::handleKeyEvent(const KeyEvent& event) {
   if (event.pressed) {
-    speech.speakKey(event.hid_usage);
 #ifndef NATIVE_TEST
+    const uint32_t now = millis();
+    const uint32_t queue_delay =
+        (event.timestamp_ms == 0 || now < event.timestamp_ms)
+            ? 0
+            : (now - event.timestamp_ms);
+    latencyLog("key", "usage=0x%02X queue_delay=%lums", event.hid_usage,
+               static_cast<unsigned long>(queue_delay));
+
     const char* label = keyLabelForUsage(event.hid_usage);
     setUiKeyLabel(label);
     ui.requestImmediateKeyLabel(label);
+    latencyLog("key", "ui queued label=%s at %lums", label,
+               static_cast<unsigned long>(millis()));
+
+    const uint32_t speak_start = millis();
+    speech.speakKey(event.hid_usage);
+    latencyLog("key", "speakKey done in %lums (total %lums)", 
+               static_cast<unsigned long>(millis() - speak_start),
+               static_cast<unsigned long>(millis() - now));
+#else
+    speech.speakKey(event.hid_usage);
 #endif
   }
   hold_detector.onKeyEvent(event, millis());
@@ -430,6 +448,10 @@ void App::setup() {
 #ifndef NATIVE_TEST
   auto cfg = M5.config();
   M5.begin(cfg);
+  Serial.begin(115200);
+  delay(500);
+  Serial.println();
+  latencyLog("boot", "echolocation starting (serial 115200)");
   M5.Display.setBrightness(128);
 #endif
 
