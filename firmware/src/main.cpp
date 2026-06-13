@@ -1,9 +1,10 @@
 #include <Arduino.h>
 #include <M5Unified.h>
 
+#include "device_settings_store.h"
+#include "key_audio.h"
 #include "lvgl_port.h"
 #include "ui.h"
-#include "key_audio.h"
 #include "usb_keyboard.h"
 
 void setup() {
@@ -13,6 +14,7 @@ void setup() {
 
   lvglPortInit();
   uiInit();
+  deviceSettingsLoad();
   keyAudioBegin();
   usbKeyboardBegin();
 }

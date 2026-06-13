@@ -1,5 +1,6 @@
 #include "ui.h"
 
+#include "device_settings_store.h"
 #include "key_audio.h"
 
 #include <lvgl.h>
@@ -14,7 +15,6 @@ const lv_color_t kBgColor = lv_color_hex(0x1A1A1A);
 const lv_color_t kHeaderColor = lv_color_hex(0x2A2A2A);
 const lv_color_t kAccentColor = lv_color_hex(0x0066FF);
 
-constexpr uint32_t kDefaultHoldDurationMs = 500;
 constexpr uint32_t kMinHoldDurationMs = 100;
 constexpr uint32_t kMaxHoldDurationMs = 3000;
 
@@ -32,7 +32,7 @@ lv_obj_t* volume_value_label = nullptr;
 lv_obj_t* hold_duration_slider = nullptr;
 lv_obj_t* hold_duration_value_label = nullptr;
 
-uint32_t hold_duration_ms = kDefaultHoldDurationMs;
+uint32_t hold_duration_ms = kDefaultHoldDurationMs;  // from device_settings_store.h
 
 void showScreen(Screen screen);
 
@@ -206,6 +206,7 @@ void onVolumeSliderChanged(lv_event_t* event) {
   lv_obj_t* slider = lv_event_get_target_obj(event);
   const int32_t value = lv_slider_get_value(slider);
   keyAudioSetVolume(static_cast<uint8_t>(value));
+  deviceSettingsSaveVolume(static_cast<uint8_t>(value));
   updateVolumeLabel();
 }
 
@@ -222,6 +223,7 @@ void onHoldDurationMenuClicked(lv_event_t* event) {
 void onHoldDurationSliderChanged(lv_event_t* event) {
   lv_obj_t* slider = lv_event_get_target_obj(event);
   hold_duration_ms = static_cast<uint32_t>(lv_slider_get_value(slider));
+  deviceSettingsSaveHoldDurationMs(hold_duration_ms);
   updateHoldDurationLabel();
 }
 
@@ -380,6 +382,14 @@ void uiSetKeyBoxOutline(bool show) {
     return;
   }
   lv_obj_set_style_border_width(pressed_key_box, show ? 3 : 0, 0);
+}
+
+void uiSetVolume(uint8_t volume) {
+  keyAudioSetVolume(volume);
+  if (volume_slider != nullptr) {
+    lv_slider_set_value(volume_slider, volume, LV_ANIM_OFF);
+  }
+  updateVolumeLabel();
 }
 
 uint32_t uiGetHoldDurationMs() { return hold_duration_ms; }
