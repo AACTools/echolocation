@@ -1,8 +1,0 @@
-{
-  "name": "echolocation_core",
-  "version": "0.0.0",
-  "build": {
-    "srcDir": "src",
-    "includeDir": "include"
-  }
-}
