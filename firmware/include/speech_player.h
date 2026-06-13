@@ -20,8 +20,10 @@ class SpeechPlayer {
 
  private:
   struct CachedAudio {
-    uint8_t* data = nullptr;
-    size_t size = 0;
+    int16_t* pcm_data = nullptr;
+    size_t sample_count = 0;
+    uint32_t sample_rate = 16000;
+    bool stereo = false;
   };
 
   static constexpr size_t kCacheCapacity = 0xE8 - 0x04;

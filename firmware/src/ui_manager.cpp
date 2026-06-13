@@ -4,6 +4,7 @@
 
 #ifndef NATIVE_TEST
 #include <cstdio>
+#include <cstring>
 #include <lvgl.h>
 #endif
 
@@ -56,6 +57,41 @@ void UiManager::setCurrentKeyLabel(const char* label) {
   current_key_label_ = new_label;
 #ifndef NATIVE_TEST
   updateKeyLabel();
+#endif
+}
+
+#ifndef NATIVE_TEST
+namespace {
+
+struct ImmediateKeyLabelRequest {
+  UiManager* manager = nullptr;
+  char label[32] = {};
+};
+
+void onImmediateKeyLabelAsync(void* user_data) {
+  auto* request = static_cast<ImmediateKeyLabelRequest*>(user_data);
+  if (request != nullptr && request->manager != nullptr) {
+    request->manager->setCurrentKeyLabel(request->label);
+  }
+  delete request;
+}
+
+}  // namespace
+#endif
+
+void UiManager::requestImmediateKeyLabel(const char* label) {
+#ifndef NATIVE_TEST
+  auto* request = new ImmediateKeyLabelRequest();
+  request->manager = this;
+  const char* safe_label = label ? label : "";
+  std::strncpy(request->label, safe_label, sizeof(request->label) - 1);
+  request->label[sizeof(request->label) - 1] = '\0';
+  if (lv_async_call(onImmediateKeyLabelAsync, request) != LV_RESULT_OK) {
+    delete request;
+    setCurrentKeyLabel(label);
+  }
+#else
+  setCurrentKeyLabel(label);
 #endif
 }
 

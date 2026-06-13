@@ -414,7 +414,9 @@ void App::handleKeyEvent(const KeyEvent& event) {
   if (event.pressed) {
     speech.speakKey(event.hid_usage);
 #ifndef NATIVE_TEST
-    setUiKeyLabel(keyLabelForUsage(event.hid_usage));
+    const char* label = keyLabelForUsage(event.hid_usage);
+    setUiKeyLabel(label);
+    ui.requestImmediateKeyLabel(label);
 #endif
   }
   hold_detector.onKeyEvent(event, millis());

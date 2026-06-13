@@ -27,6 +27,7 @@ class UiManager {
  public:
   void begin();
   void setCurrentKeyLabel(const char* label);
+  void requestImmediateKeyLabel(const char* label);
   void setBatteryPercent(int battery_percent);
   void setErrorMessage(const char* message);
   void clearError();
