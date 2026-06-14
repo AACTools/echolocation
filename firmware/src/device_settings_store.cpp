@@ -14,13 +14,11 @@ constexpr char kKeyVolume[] = "volume";
 constexpr char kKeyHoldMs[] = "hold_ms";
 constexpr char kKeyBleComputerName[] = "bt_pc";
 constexpr char kKeyBleKeyboardName[] = "bt_kb";
-constexpr char kKeyComputerBleEnabled[] = "bt_pc_en";
 
 Preferences prefs;
 
 char ble_computer_name[16] = "echolocation";
 char ble_keyboard_name[16] = "";
-bool computer_ble_enabled = false;
 
 }  // namespace
 
@@ -30,7 +28,6 @@ void deviceSettingsLoad() {
   const uint32_t hold_ms = prefs.getUInt(kKeyHoldMs, kDefaultHoldDurationMs);
   prefs.getString(kKeyBleComputerName, ble_computer_name, sizeof(ble_computer_name));
   prefs.getString(kKeyBleKeyboardName, ble_keyboard_name, sizeof(ble_keyboard_name));
-  computer_ble_enabled = prefs.getBool(kKeyComputerBleEnabled, false);
   prefs.end();
 
   if (ble_computer_name[0] == '\0') {
@@ -42,10 +39,9 @@ void deviceSettingsLoad() {
   uiSetHoldDurationMs(hold_ms);
   uiSetBleComputerName(ble_computer_name);
   uiSetBleKeyboardName(ble_keyboard_name);
-  uiSetComputerBleEnabled(computer_ble_enabled);
 
   computerOutputBleSetDeviceName(ble_computer_name);
-  computerOutputBleSetEnabled(computer_ble_enabled);
+  computerOutputBleSetEnabled(true);
 }
 
 void deviceSettingsSaveVolume(uint8_t volume) {
@@ -89,15 +85,3 @@ void deviceSettingsSaveBleKeyboardName(const char* name) {
 }
 
 const char* deviceSettingsGetBleKeyboardName() { return ble_keyboard_name; }
-
-void deviceSettingsSaveComputerBleEnabled(bool enabled) {
-  computer_ble_enabled = enabled;
-
-  prefs.begin(kNamespace, false);
-  prefs.putBool(kKeyComputerBleEnabled, enabled);
-  prefs.end();
-
-  computerOutputBleSetEnabled(enabled);
-}
-
-bool deviceSettingsGetComputerBleEnabled() { return computer_ble_enabled; }

@@ -5,6 +5,7 @@
 
 void computerOutputBegin() {
   usbHidComputerBegin();
+  bleHidComputerSetEnabled(true);
   bleHidComputerBegin();
 }
 

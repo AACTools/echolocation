@@ -15,5 +15,3 @@ void deviceSettingsSaveBleComputerName(const char* name);
 const char* deviceSettingsGetBleComputerName();
 void deviceSettingsSaveBleKeyboardName(const char* name);
 const char* deviceSettingsGetBleKeyboardName();
-void deviceSettingsSaveComputerBleEnabled(bool enabled);
-bool deviceSettingsGetComputerBleEnabled();
