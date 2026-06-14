@@ -16,3 +16,4 @@ void uiSetBleKeyboardName(const char* name);
 void uiSetComputerBleEnabled(bool enabled);
 void uiRefreshComputerConnectionStatus();
 void uiRefreshKeyboardConnectionStatus();
+void uiRefreshConnectionFlow();

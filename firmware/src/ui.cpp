@@ -38,7 +38,7 @@ lv_obj_t* screen_hold_duration = nullptr;
 lv_obj_t* screen_bluetooth = nullptr;
 lv_obj_t* screen_computer_connection = nullptr;
 lv_obj_t* screen_keyboard_connection = nullptr;
-lv_obj_t* keyboard_icon = nullptr;
+lv_obj_t* connection_flow_label = nullptr;
 lv_obj_t* pressed_key_box = nullptr;
 lv_obj_t* pressed_key_label = nullptr;
 lv_obj_t* audio_debug_label = nullptr;
@@ -377,6 +377,34 @@ void refreshKeyboardConnectionStatus() {
   }
 }
 
+void refreshConnectionFlowIndicator() {
+  if (connection_flow_label == nullptr) {
+    return;
+  }
+
+  const bool input_usb = usbKeyboardIsConnected();
+  const bool output_usb = computerOutputUsbReady();
+  const bool output_ble = computerOutputBleConnected();
+
+  const char* input_icon = input_usb ? LV_SYMBOL_USB : LV_SYMBOL_CLOSE;
+  const char* output_icon;
+  if (output_usb) {
+    output_icon = LV_SYMBOL_USB;
+  } else if (output_ble) {
+    output_icon = LV_SYMBOL_BLUETOOTH;
+  } else {
+    output_icon = LV_SYMBOL_CLOSE;
+  }
+
+  char text[32];
+  snprintf(text, sizeof(text), "%s %s %s", input_icon, LV_SYMBOL_RIGHT, output_icon);
+  lv_label_set_text(connection_flow_label, text);
+
+  const bool active = input_usb || output_usb || output_ble;
+  lv_obj_set_style_text_color(connection_flow_label,
+                              active ? kAccentColor : lv_color_hex(0x666666), 0);
+}
+
 void onBluetoothMenuClicked(lv_event_t* event) {
   (void)event;
   showScreen(Screen::kBluetooth);
@@ -457,12 +485,12 @@ void buildScreens() {
   screen_main = lv_obj_create(nullptr);
   styleScreen(screen_main);
 
-  keyboard_icon = lv_label_create(screen_main);
-  lv_label_set_text(keyboard_icon, LV_SYMBOL_KEYBOARD);
-  lv_obj_set_style_text_font(keyboard_icon, &lv_font_montserrat_16, 0);
-  lv_obj_set_style_text_color(keyboard_icon, kAccentColor, 0);
-  lv_obj_align(keyboard_icon, LV_ALIGN_TOP_LEFT, 12, 16);
-  lv_obj_add_flag(keyboard_icon, LV_OBJ_FLAG_HIDDEN);
+  connection_flow_label = lv_label_create(screen_main);
+  lv_label_set_text(connection_flow_label, LV_SYMBOL_CLOSE " " LV_SYMBOL_RIGHT " "
+                                              LV_SYMBOL_CLOSE);
+  lv_obj_set_style_text_font(connection_flow_label, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(connection_flow_label, lv_color_hex(0x666666), 0);
+  lv_obj_align(connection_flow_label, LV_ALIGN_TOP_LEFT, 12, 16);
 
   createBatteryLabel(screen_main, LV_ALIGN_TOP_RIGHT, -12, 16);
 
@@ -683,17 +711,12 @@ void buildScreens() {
 void uiInit() {
   buildScreens();
   showScreen(Screen::kMain);
+  refreshConnectionFlowIndicator();
 }
 
 void uiSetKeyboardConnected(bool connected) {
-  if (keyboard_icon == nullptr) {
-    return;
-  }
-  if (connected) {
-    lv_obj_remove_flag(keyboard_icon, LV_OBJ_FLAG_HIDDEN);
-  } else {
-    lv_obj_add_flag(keyboard_icon, LV_OBJ_FLAG_HIDDEN);
-  }
+  (void)connected;
+  refreshConnectionFlowIndicator();
 }
 
 void uiSetPressedKey(const char* label) {
@@ -776,6 +799,14 @@ void uiSetComputerBleEnabled(bool enabled) {
   }
 }
 
-void uiRefreshComputerConnectionStatus() { refreshComputerConnectionStatus(); }
+void uiRefreshComputerConnectionStatus() {
+  refreshComputerConnectionStatus();
+  refreshConnectionFlowIndicator();
+}
 
-void uiRefreshKeyboardConnectionStatus() { refreshKeyboardConnectionStatus(); }
+void uiRefreshKeyboardConnectionStatus() {
+  refreshKeyboardConnectionStatus();
+  refreshConnectionFlowIndicator();
+}
+
+void uiRefreshConnectionFlow() { refreshConnectionFlowIndicator(); }
