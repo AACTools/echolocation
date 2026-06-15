@@ -31,12 +31,18 @@ void updateBatteryStatus() {
 void setup() {
   auto cfg = M5.config();
   M5.begin(cfg);
+#ifdef ECHOLOCATION_BLE_DEBUG
+  Serial.begin(115200);
+  delay(200);
+  Serial.println();
+  Serial.println("[boot] echolocation BLE debug build");
+#endif
   M5.Display.setBrightness(128);
 
   lvglPortInit();
   uiInit();
-  computerOutputBegin();
   deviceSettingsLoad();
+  computerOutputBegin();
   usbKeyboardBegin();
   keyAudioRefresh();
   updateBatteryStatus();
