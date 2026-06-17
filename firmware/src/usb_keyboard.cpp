@@ -183,17 +183,17 @@ class KeyboardParser : public KeyboardReportParser {
       return;
     }
 
-    const uint8_t ascii = OemToAscii(mod, key);
-    if (ascii >= 0x20 && ascii <= 0x7E) {
-      out[0] = static_cast<char>(ascii);
-      out[1] = '\0';
-      return;
-    }
-
     const char* name = hidKeyName(key);
     if (name != nullptr) {
       strncpy(out, name, out_len - 1);
       out[out_len - 1] = '\0';
+      return;
+    }
+
+    const uint8_t ascii = OemToAscii(mod, key);
+    if (ascii >= 0x20 && ascii <= 0x7E) {
+      out[0] = static_cast<char>(ascii);
+      out[1] = '\0';
       return;
     }
 
