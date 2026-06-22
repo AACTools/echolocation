@@ -12,7 +12,5 @@ uint32_t uiGetHoldDurationMs();
 void uiSetHoldDurationMs(uint32_t ms);
 
 void uiSetBleComputerName(const char* name);
-void uiSetBleKeyboardName(const char* name);
 void uiRefreshComputerConnectionStatus();
-void uiRefreshKeyboardConnectionStatus();
 void uiRefreshConnectionFlow();

@@ -54,7 +54,7 @@ void loop() {
   lvglPortTick();
   computerOutputTick();
   uiRefreshComputerConnectionStatus();
-  uiRefreshKeyboardConnectionStatus();
+  uiRefreshConnectionFlow();
   usbKeyboardTick();
   delay(5);
 }
