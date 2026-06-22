@@ -15,7 +15,9 @@ namespace {
 enum class Screen {
   kMain,
   kSettings,
+#ifdef ECHOLOCATION_BLE_DEBUG
   kDebug,
+#endif
   kVolume,
   kHoldDuration,
   kBluetooth,
@@ -31,7 +33,9 @@ constexpr uint32_t kMaxHoldDurationMs = 3000;
 
 lv_obj_t* screen_main = nullptr;
 lv_obj_t* screen_settings = nullptr;
+#ifdef ECHOLOCATION_BLE_DEBUG
 lv_obj_t* screen_debug = nullptr;
+#endif
 lv_obj_t* screen_volume = nullptr;
 lv_obj_t* screen_hold_duration = nullptr;
 lv_obj_t* screen_bluetooth = nullptr;
@@ -39,7 +43,9 @@ lv_obj_t* screen_computer_connection = nullptr;
 lv_obj_t* connection_flow_label = nullptr;
 lv_obj_t* pressed_key_box = nullptr;
 lv_obj_t* pressed_key_label = nullptr;
+#ifdef ECHOLOCATION_BLE_DEBUG
 lv_obj_t* audio_debug_label = nullptr;
+#endif
 lv_obj_t* volume_slider = nullptr;
 lv_obj_t* volume_value_label = nullptr;
 lv_obj_t* hold_duration_slider = nullptr;
@@ -141,9 +147,11 @@ void showScreen(Screen screen) {
     case Screen::kSettings:
       target = screen_settings;
       break;
+#ifdef ECHOLOCATION_BLE_DEBUG
     case Screen::kDebug:
       target = screen_debug;
       break;
+#endif
     case Screen::kVolume:
       target = screen_volume;
       break;
@@ -224,6 +232,7 @@ lv_obj_t* createMenuButton(lv_obj_t* parent, const char* label, int y,
   return button;
 }
 
+#ifdef ECHOLOCATION_BLE_DEBUG
 void refreshAudioDebugLabel() {
   if (audio_debug_label == nullptr) {
     return;
@@ -251,6 +260,24 @@ void refreshAudioDebugLabel() {
   lv_label_set_text(audio_debug_label, text);
 }
 
+void onRefreshAudioDebugClicked(lv_event_t* event) {
+  (void)event;
+  keyAudioRefresh();
+  refreshAudioDebugLabel();
+}
+
+void onDebugMenuClicked(lv_event_t* event) {
+  (void)event;
+  refreshAudioDebugLabel();
+  showScreen(Screen::kDebug);
+}
+#endif
+
+void onSettingsClicked(lv_event_t* event) {
+  (void)event;
+  showScreen(Screen::kSettings);
+}
+
 void updateVolumeLabel() {
   if (volume_slider == nullptr || volume_value_label == nullptr) {
     return;
@@ -272,23 +299,6 @@ void updateHoldDurationLabel() {
   char text[32];
   snprintf(text, sizeof(text), "Hold Duration: %ld ms", static_cast<long>(value));
   lv_label_set_text(hold_duration_value_label, text);
-}
-
-void onRefreshAudioDebugClicked(lv_event_t* event) {
-  (void)event;
-  keyAudioRefresh();
-  refreshAudioDebugLabel();
-}
-
-void onSettingsClicked(lv_event_t* event) {
-  (void)event;
-  showScreen(Screen::kSettings);
-}
-
-void onDebugMenuClicked(lv_event_t* event) {
-  (void)event;
-  refreshAudioDebugLabel();
-  showScreen(Screen::kDebug);
 }
 
 void onVolumeMenuClicked(lv_event_t* event) {
@@ -442,6 +452,7 @@ void buildScreens() {
   screen_settings = lv_obj_create(nullptr);
   styleScreen(screen_settings);
   createHeader(screen_settings, "Settings", Screen::kMain);
+#ifdef ECHOLOCATION_BLE_DEBUG
   createMenuButton(screen_settings, "Debug", 56, onDebugMenuClicked);
   createMenuButton(screen_settings, "Volume", 100, onVolumeMenuClicked);
   createMenuButton(screen_settings, "Hold Duration", 144, onHoldDurationMenuClicked);
@@ -470,6 +481,11 @@ void buildScreens() {
   lv_obj_t* refresh_label = lv_label_create(refresh_button);
   lv_label_set_text(refresh_label, "Refresh");
   lv_obj_center(refresh_label);
+#else
+  createMenuButton(screen_settings, "Volume", 56, onVolumeMenuClicked);
+  createMenuButton(screen_settings, "Hold Duration", 100, onHoldDurationMenuClicked);
+  createMenuButton(screen_settings, "Bluetooth", 144, onBluetoothMenuClicked);
+#endif
 
   screen_volume = lv_obj_create(nullptr);
   styleScreen(screen_volume);
