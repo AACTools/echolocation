@@ -14,3 +14,4 @@ void uiSetHoldDurationMs(uint32_t ms);
 void uiSetBleComputerName(const char* name);
 void uiRefreshComputerConnectionStatus();
 void uiRefreshConnectionFlow();
+void uiRefreshSpeakerOutput();

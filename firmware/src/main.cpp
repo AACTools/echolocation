@@ -5,6 +5,7 @@
 #include "computer_output.h"
 #include "key_audio.h"
 #include "lvgl_port.h"
+#include "speaker_detect.h"
 #include "ui.h"
 #include "usb_keyboard.h"
 
@@ -45,7 +46,9 @@ void setup() {
   computerOutputBegin();
   usbKeyboardBegin();
   keyAudioRefresh();
+  speakerDetectBegin();
   updateBatteryStatus();
+  uiRefreshSpeakerOutput();
 }
 
 void loop() {
@@ -55,6 +58,9 @@ void loop() {
   computerOutputTick();
   uiRefreshComputerConnectionStatus();
   uiRefreshConnectionFlow();
+  if (speakerDetectPoll()) {
+    uiRefreshSpeakerOutput();
+  }
   usbKeyboardTick();
   delay(5);
 }

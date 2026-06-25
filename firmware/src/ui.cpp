@@ -3,6 +3,7 @@
 #include "computer_output.h"
 #include "device_settings_store.h"
 #include "key_audio.h"
+#include "speaker_detect.h"
 #include "usb_keyboard.h"
 
 #include <lvgl.h>
@@ -41,6 +42,8 @@ lv_obj_t* screen_hold_duration = nullptr;
 lv_obj_t* screen_bluetooth = nullptr;
 lv_obj_t* screen_computer_connection = nullptr;
 lv_obj_t* connection_flow_label = nullptr;
+lv_obj_t* speaker_output_label = nullptr;
+lv_obj_t* speaker_error_label = nullptr;
 lv_obj_t* pressed_key_box = nullptr;
 lv_obj_t* pressed_key_label = nullptr;
 #ifdef ECHOLOCATION_BLE_DEBUG
@@ -389,6 +392,55 @@ void refreshConnectionFlowIndicator() {
                               active ? kAccentColor : lv_color_hex(0x666666), 0);
 }
 
+enum class SpeakerDisplayState {
+  kUnknown,
+  kExternal,
+  kBuiltin,
+  kModuleAbsent,
+};
+
+SpeakerDisplayState displayed_speaker_state = SpeakerDisplayState::kUnknown;
+
+void refreshSpeakerOutputIndicator() {
+  if (speaker_output_label == nullptr || speaker_error_label == nullptr) {
+    return;
+  }
+
+  SpeakerDisplayState state;
+  if (!speakerDetectIsModulePresent()) {
+    state = SpeakerDisplayState::kModuleAbsent;
+  } else if (speakerDetectIsExternalConnected()) {
+    state = SpeakerDisplayState::kExternal;
+  } else {
+    state = SpeakerDisplayState::kBuiltin;
+  }
+
+  if (state == displayed_speaker_state) {
+    return;
+  }
+  displayed_speaker_state = state;
+
+  switch (state) {
+    case SpeakerDisplayState::kExternal:
+      lv_obj_add_flag(speaker_error_label, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_remove_flag(speaker_output_label, LV_OBJ_FLAG_HIDDEN);
+      lv_label_set_text(speaker_output_label, LV_SYMBOL_VOLUME_MAX);
+      lv_obj_set_style_text_color(speaker_output_label, kAccentColor, 0);
+      break;
+    case SpeakerDisplayState::kBuiltin:
+      lv_obj_add_flag(speaker_error_label, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_remove_flag(speaker_output_label, LV_OBJ_FLAG_HIDDEN);
+      lv_label_set_text(speaker_output_label, LV_SYMBOL_VOLUME_MAX);
+      lv_obj_set_style_text_color(speaker_output_label, lv_color_hex(0x666666), 0);
+      break;
+    case SpeakerDisplayState::kModuleAbsent:
+    default:
+      lv_obj_add_flag(speaker_output_label, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_remove_flag(speaker_error_label, LV_OBJ_FLAG_HIDDEN);
+      break;
+  }
+}
+
 void onBluetoothMenuClicked(lv_event_t* event) {
   (void)event;
   showScreen(Screen::kBluetooth);
@@ -436,6 +488,20 @@ void buildScreens() {
   lv_obj_set_style_text_font(pressed_key_label, &lv_font_montserrat_48, 0);
   lv_obj_set_style_text_color(pressed_key_label, lv_color_white(), 0);
   lv_obj_center(pressed_key_label);
+
+  speaker_output_label = lv_label_create(screen_main);
+  lv_label_set_text(speaker_output_label, LV_SYMBOL_VOLUME_MAX);
+  lv_obj_set_style_text_font(speaker_output_label, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(speaker_output_label, lv_color_hex(0x666666), 0);
+  lv_obj_align(speaker_output_label, LV_ALIGN_BOTTOM_LEFT, 12, -12);
+
+  speaker_error_label = lv_label_create(screen_main);
+  lv_label_set_text(speaker_error_label,
+                     LV_SYMBOL_WARNING " audio module missing");
+  lv_obj_set_style_text_font(speaker_error_label, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(speaker_error_label, lv_color_hex(0xFF4444), 0);
+  lv_obj_align(speaker_error_label, LV_ALIGN_BOTTOM_LEFT, 12, -12);
+  lv_obj_add_flag(speaker_error_label, LV_OBJ_FLAG_HIDDEN);
 
   lv_obj_t* settings_button = lv_btn_create(screen_main);
   lv_obj_set_size(settings_button, 100, 40);
@@ -650,3 +716,5 @@ void uiRefreshComputerConnectionStatus() {
 }
 
 void uiRefreshConnectionFlow() { refreshConnectionFlowIndicator(); }
+
+void uiRefreshSpeakerOutput() { refreshSpeakerOutputIndicator(); }
