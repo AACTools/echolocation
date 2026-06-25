@@ -6,6 +6,7 @@
 #include "key_audio.h"
 #include "lvgl_port.h"
 #include "speaker_detect.h"
+#include "speaker_route.h"
 #include "ui.h"
 #include "usb_keyboard.h"
 
@@ -47,6 +48,7 @@ void setup() {
   usbKeyboardBegin();
   keyAudioRefresh();
   speakerDetectBegin();
+  speakerRouteBegin();
   updateBatteryStatus();
   uiRefreshSpeakerOutput();
 }
@@ -59,6 +61,7 @@ void loop() {
   uiRefreshComputerConnectionStatus();
   uiRefreshConnectionFlow();
   if (speakerDetectPoll()) {
+    speakerRouteApply();
     uiRefreshSpeakerOutput();
   }
   usbKeyboardTick();

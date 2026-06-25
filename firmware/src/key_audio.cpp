@@ -1,5 +1,7 @@
 #include "key_audio.h"
 
+#include "speaker_route.h"
+
 #include <M5Unified.h>
 #include <SD.h>
 #include <SPI.h>
@@ -184,10 +186,9 @@ void keyAudioPlayForLabel(const char* label) {
     return;
   }
 
-  M5.Speaker.stop();
-  M5.Speaker.playWav(wav_buffer, file_size, 1, -1, true);
+  speakerRoutePlayWav(wav_buffer, file_size);
 }
 
-void keyAudioSetVolume(uint8_t volume) { M5.Speaker.setVolume(volume); }
+void keyAudioSetVolume(uint8_t volume) { speakerRouteSetVolume(volume); }
 
-uint8_t keyAudioGetVolume() { return M5.Speaker.getVolume(); }
+uint8_t keyAudioGetVolume() { return speakerRouteGetVolume(); }
