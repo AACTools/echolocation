@@ -1,5 +1,7 @@
 #include "ble_hid_computer.h"
 
+#include "ui.h"
+
 #include <BLE2902.h>
 #include <BLEDevice.h>
 #include <BLEHIDDevice.h>
@@ -49,6 +51,9 @@ bool advertising_active = false;
 bool initialized = false;
 bool link_connected = false;
 bool hid_ready = false;
+bool have_server_peer = false;
+bool pending_computer_ui = false;
+esp_bd_addr_t server_peer_addr = {};
 
 BLEHIDDevice* hid = nullptr;
 BLECharacteristic* input_keyboard = nullptr;
@@ -105,6 +110,38 @@ void logCccdState(const char* context) {
           cccd->getIndications());
 }
 
+void clearServerPeer() {
+  have_server_peer = false;
+  memset(server_peer_addr, 0, sizeof(server_peer_addr));
+}
+
+void setServerPeer(const esp_bd_addr_t addr) {
+  memcpy(server_peer_addr, addr, sizeof(server_peer_addr));
+  have_server_peer = true;
+}
+
+bool isServerPeer(const esp_bd_addr_t addr) {
+  return have_server_peer &&
+         memcmp(addr, server_peer_addr, sizeof(server_peer_addr)) == 0;
+}
+
+void setHidReady(bool ready) {
+  if (hid_ready == ready) {
+    return;
+  }
+  hid_ready = ready;
+  pending_computer_ui = true;
+}
+
+void processPendingComputerUi() {
+  if (!pending_computer_ui) {
+    return;
+  }
+  pending_computer_ui = false;
+  uiRefreshComputerConnectionStatus();
+  uiRefreshConnectionFlow();
+}
+
 class InputReportCallbacks : public BLECharacteristicCallbacks {
  public:
   void onStatus(BLECharacteristic* /*characteristic*/,
@@ -152,13 +189,25 @@ class BleSecurityCallbacks : public BLESecurityCallbacks {
   }
   bool onSecurityRequest() override { return true; }
   void onAuthenticationComplete(esp_ble_auth_cmpl_t auth_cmpl) override {
+    if (have_server_peer && !isServerPeer(auth_cmpl.bd_addr)) {
+      BLE_LOG("auth ignored for non-host peer");
+      return;
+    }
+    if (!have_server_peer && !link_connected) {
+      BLE_LOG("auth ignored with no active host link");
+      return;
+    }
+    if (!have_server_peer) {
+      setServerPeer(auth_cmpl.bd_addr);
+    }
+
     if (auth_cmpl.success) {
-      hid_ready = true;
+      setHidReady(true);
       setInputNotifications(true);
       logCccdState("authComplete");
       BLE_LOG("pairing complete");
     } else {
-      hid_ready = false;
+      setHidReady(false);
       BLE_LOG("pairing failed reason=%d", auth_cmpl.fail_reason);
     }
   }
@@ -175,7 +224,7 @@ class BleServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer* ble_server,
                  esp_ble_gatts_cb_param_t* param) override {
     link_connected = true;
-    hid_ready = false;
+    setHidReady(false);
     setInputNotifications(true);
 
     if (advertising != nullptr) {
@@ -184,6 +233,7 @@ class BleServerCallbacks : public BLEServerCallbacks {
     }
 
     if (param != nullptr) {
+      setServerPeer(param->connect.remote_bda);
       esp_ble_conn_update_params_t conn_params = {};
       memcpy(conn_params.bda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
       conn_params.latency = 0;
@@ -198,7 +248,8 @@ class BleServerCallbacks : public BLEServerCallbacks {
 
   void onDisconnect(BLEServer* /*ble_server*/) override {
     link_connected = false;
-    hid_ready = false;
+    clearServerPeer();
+    setHidReady(false);
     setInputNotifications(false);
     BLE_LOG("disconnected");
 
@@ -258,6 +309,7 @@ void resetPointers() {
   advertising = nullptr;
   link_connected = false;
   hid_ready = false;
+  clearServerPeer();
   advertising_active = false;
 }
 
@@ -329,7 +381,7 @@ void bleHidComputerBegin() {
   bleHidComputerStartPairing();
 }
 
-void bleHidComputerTick() {}
+void bleHidComputerTick() { processPendingComputerUi(); }
 
 void bleHidComputerSendKey(uint8_t mod, uint8_t key) {
   if (!enabled || key == 0) {
