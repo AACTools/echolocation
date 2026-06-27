@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <M5Unified.h>
 
+#include "ble_keyboard.h"
 #include "device_settings_store.h"
 #include "computer_output.h"
 #include "key_audio.h"
@@ -33,11 +34,12 @@ void updateBatteryStatus() {
 void setup() {
   auto cfg = M5.config();
   M5.begin(cfg);
-#ifdef ECHOLOCATION_BLE_DEBUG
   Serial.begin(115200);
   delay(200);
   Serial.println();
-  Serial.println("[boot] echolocation BLE debug build");
+  Serial.println("[boot] echolocation");
+#ifdef ECHOLOCATION_BLE_DEBUG
+  Serial.println("[boot] BLE debug build");
 #endif
   M5.Display.setBrightness(128);
 
@@ -45,6 +47,7 @@ void setup() {
   uiInit();
   deviceSettingsLoad();
   computerOutputBegin();
+  bleKeyboardBegin();
   usbKeyboardBegin();
   keyAudioRefresh();
   speakerDetectBegin();
@@ -58,8 +61,10 @@ void loop() {
   updateBatteryStatus();
   lvglPortTick();
   computerOutputTick();
+  bleKeyboardTick();
   uiRefreshComputerConnectionStatus();
   uiRefreshConnectionFlow();
+  uiRefreshKeyboardConnectionStatus();
   if (speakerDetectPoll()) {
     speakerRouteApply();
     uiRefreshSpeakerOutput();

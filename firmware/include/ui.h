@@ -4,6 +4,7 @@
 
 void uiInit();
 void uiSetKeyboardConnected(bool connected);
+void uiSetBleKeyboardConnected(bool connected);
 void uiSetPressedKey(const char* label);
 void uiSetKeyBoxOutline(bool show);
 void uiSetVolume(uint8_t volume);
@@ -15,3 +16,4 @@ void uiSetBleComputerName(const char* name);
 void uiRefreshComputerConnectionStatus();
 void uiRefreshConnectionFlow();
 void uiRefreshSpeakerOutput();
+void uiRefreshKeyboardConnectionStatus();

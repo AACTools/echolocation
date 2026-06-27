@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 constexpr uint8_t kDefaultVolume = 128;
@@ -12,3 +13,12 @@ void deviceSettingsSaveHoldDurationMs(uint32_t ms);
 
 void deviceSettingsSaveBleComputerName(const char* name);
 const char* deviceSettingsGetBleComputerName();
+
+void deviceSettingsSaveBleKeyboardEnabled(bool enabled);
+bool deviceSettingsGetBleKeyboardEnabled();
+void deviceSettingsSaveBleKeyboardDevice(const uint8_t address[6], const char* name,
+                                         uint8_t addr_type);
+bool deviceSettingsGetBleKeyboardAddress(uint8_t address_out[6]);
+uint8_t deviceSettingsGetBleKeyboardAddressType();
+void deviceSettingsGetBleKeyboardName(char* name_out, size_t name_len);
+bool deviceSettingsHasBleKeyboardDevice();
