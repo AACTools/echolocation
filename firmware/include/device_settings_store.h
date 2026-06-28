@@ -8,6 +8,7 @@ constexpr uint32_t kDefaultHoldDurationMs = 500;
 constexpr char kDefaultBleComputerName[] = "echolocation";
 
 void deviceSettingsLoad();
+void deviceSettingsResetToFactory();
 void deviceSettingsSaveVolume(uint8_t volume);
 void deviceSettingsSaveHoldDurationMs(uint32_t ms);
 

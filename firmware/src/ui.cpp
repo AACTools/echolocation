@@ -28,6 +28,7 @@ enum class Screen {
   kBluetooth,
   kComputerConnection,
   kKeyboardConnection,
+  kFactoryReset,
 };
 
 const lv_color_t kBgColor = lv_color_hex(0x1A1A1A);
@@ -49,6 +50,7 @@ lv_obj_t* screen_hold_duration = nullptr;
 lv_obj_t* screen_bluetooth = nullptr;
 lv_obj_t* screen_computer_connection = nullptr;
 lv_obj_t* screen_keyboard_connection = nullptr;
+lv_obj_t* screen_factory_reset = nullptr;
 lv_obj_t* connection_flow_label = nullptr;
 lv_obj_t* speaker_output_label = nullptr;
 lv_obj_t* speaker_error_label = nullptr;
@@ -196,6 +198,9 @@ void showScreen(Screen screen) {
     case Screen::kKeyboardConnection:
       target = screen_keyboard_connection;
       break;
+    case Screen::kFactoryReset:
+      target = screen_factory_reset;
+      break;
   }
   if (target != nullptr) {
     lv_screen_load(target);
@@ -271,6 +276,50 @@ lv_obj_t* createMenuButton(lv_obj_t* parent, const char* label, int y,
   lv_obj_align(chevron, LV_ALIGN_RIGHT_MID, -12, 0);
 
   return button;
+}
+
+lv_obj_t* createMenuListButton(lv_obj_t* parent, const char* label,
+                               lv_event_cb_t on_click) {
+  lv_obj_t* button = lv_btn_create(parent);
+  lv_obj_set_width(button, LV_PCT(100));
+  lv_obj_set_height(button, 44);
+  lv_obj_set_style_radius(button, 8, 0);
+  lv_obj_set_style_bg_color(button, lv_color_hex(0x2A2A2A), 0);
+  lv_obj_add_event_cb(button, on_click, LV_EVENT_CLICKED, nullptr);
+
+  lv_obj_t* button_label = lv_label_create(button);
+  lv_label_set_text(button_label, label);
+  lv_obj_set_style_text_font(button_label, &lv_font_montserrat_16, 0);
+  lv_obj_align(button_label, LV_ALIGN_LEFT_MID, 12, 0);
+
+  lv_obj_t* chevron = lv_label_create(button);
+  lv_label_set_text(chevron, LV_SYMBOL_RIGHT);
+  lv_obj_set_style_text_color(chevron, lv_color_hex(0x888888), 0);
+  lv_obj_align(chevron, LV_ALIGN_RIGHT_MID, -12, 0);
+
+  return button;
+}
+
+lv_obj_t* createScrollableMenuList(lv_obj_t* parent) {
+  lv_obj_t* list = lv_obj_create(parent);
+  lv_obj_set_size(list, LV_PCT(100), 200);
+  lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 40);
+  lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(list, 0, 0);
+  lv_obj_set_style_pad_all(list, 12, 0);
+  lv_obj_set_style_pad_row(list, 8, 0);
+  lv_obj_set_style_pad_right(list, 16, 0);
+  lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(list, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_START);
+  lv_obj_add_flag(list, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_scroll_dir(list, LV_DIR_VER);
+  lv_obj_set_scrollbar_mode(list, LV_SCROLLBAR_MODE_ON);
+  lv_obj_set_style_width(list, 8, LV_PART_SCROLLBAR);
+  lv_obj_set_style_bg_color(list, kAccentColor, LV_PART_SCROLLBAR);
+  lv_obj_set_style_bg_opa(list, LV_OPA_70, LV_PART_SCROLLBAR);
+  lv_obj_set_style_radius(list, 4, LV_PART_SCROLLBAR);
+  return list;
 }
 
 #ifdef ECHOLOCATION_BLE_DEBUG
@@ -490,6 +539,19 @@ void refreshSpeakerOutputIndicator() {
 void onBluetoothMenuClicked(lv_event_t* event) {
   (void)event;
   showScreen(Screen::kBluetooth);
+}
+
+void onFactoryResetMenuClicked(lv_event_t* event) {
+  (void)event;
+  showScreen(Screen::kFactoryReset);
+}
+
+void onFactoryResetConfirmed(lv_event_t* event) {
+  (void)event;
+  deviceSettingsResetToFactory();
+  refreshComputerConnectionStatus();
+  refreshKeyboardConnectionStatus();
+  showScreen(Screen::kSettings);
 }
 
 void onComputerConnectionMenuClicked(lv_event_t* event) {
@@ -752,12 +814,17 @@ void buildScreens() {
   screen_settings = lv_obj_create(nullptr);
   styleScreen(screen_settings);
   createHeader(screen_settings, "Settings", Screen::kMain);
-#ifdef ECHOLOCATION_BLE_DEBUG
-  createMenuButton(screen_settings, "Debug", 56, onDebugMenuClicked);
-  createMenuButton(screen_settings, "Volume", 100, onVolumeMenuClicked);
-  createMenuButton(screen_settings, "Hold Duration", 144, onHoldDurationMenuClicked);
-  createMenuButton(screen_settings, "Bluetooth", 188, onBluetoothMenuClicked);
 
+  lv_obj_t* settings_menu_list = createScrollableMenuList(screen_settings);
+#ifdef ECHOLOCATION_BLE_DEBUG
+  createMenuListButton(settings_menu_list, "Debug", onDebugMenuClicked);
+#endif
+  createMenuListButton(settings_menu_list, "Volume", onVolumeMenuClicked);
+  createMenuListButton(settings_menu_list, "Hold Duration", onHoldDurationMenuClicked);
+  createMenuListButton(settings_menu_list, "Bluetooth", onBluetoothMenuClicked);
+  createMenuListButton(settings_menu_list, "Factory Defaults", onFactoryResetMenuClicked);
+
+#ifdef ECHOLOCATION_BLE_DEBUG
   screen_debug = lv_obj_create(nullptr);
   styleScreen(screen_debug);
   createHeader(screen_debug, "Debug", Screen::kSettings);
@@ -781,11 +848,35 @@ void buildScreens() {
   lv_obj_t* refresh_label = lv_label_create(refresh_button);
   lv_label_set_text(refresh_label, "Refresh");
   lv_obj_center(refresh_label);
-#else
-  createMenuButton(screen_settings, "Volume", 56, onVolumeMenuClicked);
-  createMenuButton(screen_settings, "Hold Duration", 100, onHoldDurationMenuClicked);
-  createMenuButton(screen_settings, "Bluetooth", 144, onBluetoothMenuClicked);
 #endif
+
+  screen_factory_reset = lv_obj_create(nullptr);
+  styleScreen(screen_factory_reset);
+  createHeader(screen_factory_reset, "Factory Defaults", Screen::kSettings);
+
+  lv_obj_t* factory_reset_message = lv_label_create(screen_factory_reset);
+  lv_label_set_text(factory_reset_message,
+                    "Reset all settings to factory defaults?\n\n"
+                    "Volume, hold duration, Bluetooth name,\n"
+                    "and keyboard pairing will be cleared.");
+  lv_obj_set_style_text_font(factory_reset_message, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(factory_reset_message, lv_color_white(), 0);
+  lv_obj_set_width(factory_reset_message, 280);
+  lv_label_set_long_mode(factory_reset_message, LV_LABEL_LONG_WRAP);
+  lv_obj_set_style_text_align(factory_reset_message, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(factory_reset_message, LV_ALIGN_CENTER, 0, -24);
+
+  lv_obj_t* confirm_reset_button = lv_btn_create(screen_factory_reset);
+  lv_obj_set_size(confirm_reset_button, 160, 44);
+  lv_obj_align(confirm_reset_button, LV_ALIGN_BOTTOM_MID, 0, -16);
+  lv_obj_set_style_radius(confirm_reset_button, 8, 0);
+  lv_obj_set_style_bg_color(confirm_reset_button, lv_color_hex(0xCC3333), 0);
+  lv_obj_add_event_cb(confirm_reset_button, onFactoryResetConfirmed, LV_EVENT_CLICKED,
+                      nullptr);
+
+  lv_obj_t* confirm_reset_label = lv_label_create(confirm_reset_button);
+  lv_label_set_text(confirm_reset_label, "Reset");
+  lv_obj_center(confirm_reset_label);
 
   screen_volume = lv_obj_create(nullptr);
   styleScreen(screen_volume);

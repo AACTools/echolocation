@@ -38,6 +38,13 @@ bool macIsValid(const uint8_t mac[6]) {
 
 }  // namespace
 
+void deviceSettingsResetToFactory() {
+  prefs.begin(kNamespace, false);
+  prefs.clear();
+  prefs.end();
+  deviceSettingsLoad();
+}
+
 void deviceSettingsLoad() {
   prefs.begin(kNamespace, true);
   const uint8_t volume = prefs.getUChar(kKeyVolume, kDefaultVolume);
