@@ -24,6 +24,8 @@
 #define LV_USE_LABEL 1
 #define LV_USE_SLIDER 1
 #define LV_USE_TEXTAREA 1
+#define LV_USE_ARC 1
+#define LV_USE_SPINNER 1
 
 #define LV_FONT_MONTSERRAT_14 1
 #define LV_FONT_MONTSERRAT_16 1

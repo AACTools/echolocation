@@ -3,6 +3,9 @@
 #include <stdint.h>
 
 void uiInit();
+void uiSetLoadingStatus(const char* status);
+void uiFinishLoading();
+void uiPump();
 void uiSetKeyboardConnected(bool connected);
 void uiSetBleKeyboardConnected(bool connected);
 void uiSetPressedKey(const char* label);

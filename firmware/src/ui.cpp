@@ -4,6 +4,7 @@
 #include "computer_output.h"
 #include "device_settings_store.h"
 #include "key_audio.h"
+#include "lvgl_port.h"
 #include "speaker_detect.h"
 #include "usb_keyboard.h"
 
@@ -16,6 +17,7 @@
 namespace {
 
 enum class Screen {
+  kLoading,
   kMain,
   kSettings,
 #ifdef ECHOLOCATION_BLE_DEBUG
@@ -35,6 +37,8 @@ const lv_color_t kAccentColor = lv_color_hex(0x0066FF);
 constexpr uint32_t kMinHoldDurationMs = 100;
 constexpr uint32_t kMaxHoldDurationMs = 3000;
 
+lv_obj_t* screen_loading = nullptr;
+lv_obj_t* loading_status_label = nullptr;
 lv_obj_t* screen_main = nullptr;
 lv_obj_t* screen_settings = nullptr;
 #ifdef ECHOLOCATION_BLE_DEBUG
@@ -67,7 +71,7 @@ lv_obj_t* keyboard_device_list = nullptr;
 constexpr size_t kMaxKeyboardListDevices = 16;
 uint8_t keyboard_list_addresses[kMaxKeyboardListDevices][6] = {};
 
-Screen current_screen = Screen::kMain;
+Screen current_screen = Screen::kLoading;
 
 constexpr size_t kMaxBatteryLabels = 8;
 lv_obj_t* battery_labels[kMaxBatteryLabels] = {};
@@ -163,6 +167,9 @@ void showScreen(Screen screen) {
 
   lv_obj_t* target = nullptr;
   switch (screen) {
+    case Screen::kLoading:
+      target = screen_loading;
+      break;
     case Screen::kMain:
       target = screen_main;
       break;
@@ -654,6 +661,31 @@ void refreshKeyboardConnectionStatus() {
   }
 }
 
+void buildLoadingScreen() {
+  screen_loading = lv_obj_create(nullptr);
+  styleScreen(screen_loading);
+
+  lv_obj_t* title = lv_label_create(screen_loading);
+  lv_label_set_text(title, "echolocation");
+  lv_obj_set_style_text_font(title, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_color(title, lv_color_white(), 0);
+  lv_obj_align(title, LV_ALIGN_CENTER, 0, -48);
+
+  lv_obj_t* spinner = lv_spinner_create(screen_loading);
+  lv_obj_set_size(spinner, 48, 48);
+  lv_obj_align(spinner, LV_ALIGN_CENTER, 0, 0);
+  lv_spinner_set_anim_params(spinner, 1000, 200);
+
+  loading_status_label = lv_label_create(screen_loading);
+  lv_label_set_text(loading_status_label, "Starting up...");
+  lv_obj_set_style_text_font(loading_status_label, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(loading_status_label, lv_color_hex(0xAAAAAA), 0);
+  lv_obj_set_width(loading_status_label, 280);
+  lv_label_set_long_mode(loading_status_label, LV_LABEL_LONG_WRAP);
+  lv_obj_set_style_text_align(loading_status_label, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(loading_status_label, LV_ALIGN_CENTER, 0, 56);
+}
+
 void buildScreens() {
   screen_main = lv_obj_create(nullptr);
   styleScreen(screen_main);
@@ -897,10 +929,29 @@ void buildScreens() {
 }  // namespace
 
 void uiInit() {
+  buildLoadingScreen();
+  showScreen(Screen::kLoading);
+  uiPump();
   buildScreens();
+}
+
+void uiSetLoadingStatus(const char* status) {
+  if (loading_status_label == nullptr || status == nullptr) {
+    return;
+  }
+  lv_label_set_text(loading_status_label, status);
+  uiPump();
+}
+
+void uiFinishLoading() {
   showScreen(Screen::kMain);
   refreshConnectionFlowIndicator();
+  refreshComputerConnectionStatus();
+  refreshKeyboardConnectionStatus();
+  refreshSpeakerOutputIndicator();
 }
+
+void uiPump() { lvglPortTick(); }
 
 void uiSetKeyboardConnected(bool connected) {
   (void)connected;

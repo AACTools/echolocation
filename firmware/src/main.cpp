@@ -14,6 +14,15 @@
 namespace {
 
 constexpr uint32_t kBatteryUpdateIntervalMs = 2000;
+constexpr uint32_t kLoadingPumpSliceMs = 30;
+
+void pumpLoadingUi() {
+  const uint32_t end_ms = millis() + kLoadingPumpSliceMs;
+  while (millis() < end_ms) {
+    uiPump();
+    delay(5);
+  }
+}
 
 void updateBatteryStatus() {
   static uint32_t last_update_ms = 0;
@@ -45,15 +54,34 @@ void setup() {
 
   lvglPortInit();
   uiInit();
+
+  uiSetLoadingStatus("Loading settings...");
+  pumpLoadingUi();
   deviceSettingsLoad();
+
+  uiSetLoadingStatus("Starting computer output...");
+  pumpLoadingUi();
   computerOutputBegin();
+
+  uiSetLoadingStatus("Starting Bluetooth keyboard...");
+  pumpLoadingUi();
   bleKeyboardBegin();
+
+  uiSetLoadingStatus("Starting USB keyboard...");
+  pumpLoadingUi();
   usbKeyboardBegin();
+
+  uiSetLoadingStatus("Loading audio...");
+  pumpLoadingUi();
   keyAudioRefresh();
+
+  uiSetLoadingStatus("Starting speakers...");
+  pumpLoadingUi();
   speakerDetectBegin();
   speakerRouteBegin();
+
   updateBatteryStatus();
-  uiRefreshSpeakerOutput();
+  uiFinishLoading();
 }
 
 void loop() {
