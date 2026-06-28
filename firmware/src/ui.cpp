@@ -341,12 +341,14 @@ void refreshAudioDebugLabel() {
            "  c.wav: %s\n"
            "  space.wav: %s\n"
            "  enter.wav: %s\n\n"
-           "Found: %d/5",
+           "Found: %d/5\n"
+           "Cached: %d",
            info.sd_mounted ? "yes" : "no",
            info.audio_dir_exists ? "yes" : "no",
            info.probe_a_wav ? "yes" : "no", info.probe_b_wav ? "yes" : "no",
            info.probe_c_wav ? "yes" : "no", info.probe_space_wav ? "yes" : "no",
-           info.probe_enter_wav ? "yes" : "no", info.probe_files_found);
+           info.probe_enter_wav ? "yes" : "no", info.probe_files_found,
+           info.cached_wav_count);
   lv_label_set_text(audio_debug_label, text);
 }
 

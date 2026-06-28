@@ -18,10 +18,18 @@ constexpr int kLcdCs = 3;
 constexpr int kSdCs = 4;
 constexpr char kAudioDir[] = "/audio";
 constexpr uint32_t kFspiQOutIdx = 102;
+constexpr size_t kMaxCachedFiles = 128;
+constexpr size_t kBasenameLen = 16;
+
+struct CachedWav {
+  char basename[kBasenameLen];
+  uint8_t* data = nullptr;
+  size_t size = 0;
+};
 
 bool sd_ready = false;
-uint8_t* wav_buffer = nullptr;
-size_t wav_buffer_capacity = 0;
+CachedWav cached_wavs[kMaxCachedFiles];
+size_t cached_wav_count = 0;
 
 void enableSdPower() {
   M5.In_I2C.bitOn(0x58, 0x02, 0b00010000, 400000);
@@ -74,10 +82,116 @@ uint8_t* allocBuffer(size_t size) {
   return buffer;
 }
 
-bool audioFileExists(const char* filename) {
+void clearWavCache() {
+  for (size_t i = 0; i < cached_wav_count; ++i) {
+    free(cached_wavs[i].data);
+    cached_wavs[i].data = nullptr;
+    cached_wavs[i].size = 0;
+    cached_wavs[i].basename[0] = '\0';
+  }
+  cached_wav_count = 0;
+}
+
+bool cacheWavFile(const char* basename) {
+  if (basename == nullptr || basename[0] == '\0' ||
+      cached_wav_count >= kMaxCachedFiles) {
+    return false;
+  }
+
   char path[48];
-  snprintf(path, sizeof(path), "%s/%s", kAudioDir, filename);
-  return SD.exists(path);
+  snprintf(path, sizeof(path), "%s/%s.wav", kAudioDir, basename);
+  if (!SD.exists(path)) {
+    return false;
+  }
+
+  File file = SD.open(path, FILE_READ);
+  if (!file) {
+    return false;
+  }
+
+  const size_t file_size = file.size();
+  if (file_size == 0) {
+    file.close();
+    return false;
+  }
+
+  uint8_t* buffer = allocBuffer(file_size);
+  if (buffer == nullptr) {
+    file.close();
+    return false;
+  }
+
+  const size_t bytes_read = file.read(buffer, file_size);
+  file.close();
+  if (bytes_read != file_size) {
+    free(buffer);
+    return false;
+  }
+
+  CachedWav* entry = &cached_wavs[cached_wav_count++];
+  strncpy(entry->basename, basename, sizeof(entry->basename) - 1);
+  entry->basename[sizeof(entry->basename) - 1] = '\0';
+  entry->data = buffer;
+  entry->size = file_size;
+  return true;
+}
+
+void loadWavCacheFromSd() {
+  clearWavCache();
+
+  File dir = SD.open(kAudioDir);
+  if (!dir || !dir.isDirectory()) {
+    if (dir) {
+      dir.close();
+    }
+    return;
+  }
+
+  for (File entry = dir.openNextFile(); entry && cached_wav_count < kMaxCachedFiles;
+       entry = dir.openNextFile()) {
+    if (entry.isDirectory()) {
+      entry.close();
+      continue;
+    }
+
+    const char* filename = entry.name();
+    const size_t name_len = strlen(filename);
+    if (name_len < 5 || strcasecmp(filename + name_len - 4, ".wav") != 0) {
+      entry.close();
+      continue;
+    }
+
+    char basename[kBasenameLen];
+    const size_t base_len = name_len - 4;
+    if (base_len >= sizeof(basename)) {
+      entry.close();
+      continue;
+    }
+    memcpy(basename, filename, base_len);
+    basename[base_len] = '\0';
+    entry.close();
+
+    cacheWavFile(basename);
+  }
+
+  dir.close();
+}
+
+const CachedWav* findCachedWav(const char* basename) {
+  if (basename == nullptr) {
+    return nullptr;
+  }
+
+  for (size_t i = 0; i < cached_wav_count; ++i) {
+    if (strcmp(cached_wavs[i].basename, basename) == 0) {
+      return &cached_wavs[i];
+    }
+  }
+  return nullptr;
+}
+
+bool audioFileExists(const char* filename) {
+  return findCachedWav(filename) != nullptr;
 }
 
 void ensureSdReady() {
@@ -91,11 +205,19 @@ void ensureSdReady() {
 
 void keyAudioBegin() {
   sd_ready = mountSdCard();
+  if (sd_ready) {
+    loadWavCacheFromSd();
+  }
 }
 
 void keyAudioRefresh() {
   SD.end();
   sd_ready = mountSdCard();
+  if (sd_ready) {
+    loadWavCacheFromSd();
+  } else {
+    clearWavCache();
+  }
 }
 
 void keyAudioGetDebugInfo(KeyAudioDebugInfo* info) {
@@ -108,16 +230,17 @@ void keyAudioGetDebugInfo(KeyAudioDebugInfo* info) {
   ensureSdReady();
 
   info->sd_mounted = sd_ready;
+  info->cached_wav_count = static_cast<int>(cached_wav_count);
   if (!sd_ready) {
     return;
   }
 
   info->audio_dir_exists = SD.exists(kAudioDir);
-  info->probe_a_wav = audioFileExists("a.wav");
-  info->probe_b_wav = audioFileExists("b.wav");
-  info->probe_c_wav = audioFileExists("c.wav");
-  info->probe_space_wav = audioFileExists("space.wav");
-  info->probe_enter_wav = audioFileExists("enter.wav");
+  info->probe_a_wav = audioFileExists("a");
+  info->probe_b_wav = audioFileExists("b");
+  info->probe_c_wav = audioFileExists("c");
+  info->probe_space_wav = audioFileExists("space");
+  info->probe_enter_wav = audioFileExists("enter");
 
   info->probe_files_found = 0;
   if (info->probe_a_wav) {
@@ -142,51 +265,17 @@ void keyAudioPlayForLabel(const char* label) {
     return;
   }
 
-  ensureSdReady();
-  if (!sd_ready) {
-    return;
-  }
-
   char basename[16];
   if (!labelToBasename(label, basename, sizeof(basename))) {
     return;
   }
 
-  char path[48];
-  snprintf(path, sizeof(path), "%s/%s.wav", kAudioDir, basename);
-  if (!SD.exists(path)) {
+  const CachedWav* cached = findCachedWav(basename);
+  if (cached == nullptr || cached->data == nullptr || cached->size == 0) {
     return;
   }
 
-  File file = SD.open(path, FILE_READ);
-  if (!file) {
-    return;
-  }
-
-  const size_t file_size = file.size();
-  if (file_size == 0) {
-    file.close();
-    return;
-  }
-
-  if (file_size > wav_buffer_capacity) {
-    uint8_t* new_buffer = allocBuffer(file_size);
-    if (new_buffer == nullptr) {
-      file.close();
-      return;
-    }
-    free(wav_buffer);
-    wav_buffer = new_buffer;
-    wav_buffer_capacity = file_size;
-  }
-
-  const size_t bytes_read = file.read(wav_buffer, file_size);
-  file.close();
-  if (bytes_read != file_size) {
-    return;
-  }
-
-  speakerRoutePlayWav(wav_buffer, file_size);
+  speakerRoutePlayWav(cached->data, cached->size);
 }
 
 void keyAudioSetVolume(uint8_t volume) { speakerRouteSetVolume(volume); }

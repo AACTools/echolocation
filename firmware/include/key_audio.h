@@ -12,6 +12,7 @@ struct KeyAudioDebugInfo {
   bool probe_space_wav;
   bool probe_enter_wav;
   int probe_files_found;
+  int cached_wav_count;
 };
 
 void keyAudioBegin();
