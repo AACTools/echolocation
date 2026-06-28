@@ -63,9 +63,9 @@ lv_obj_t* volume_slider = nullptr;
 lv_obj_t* volume_value_label = nullptr;
 lv_obj_t* hold_duration_slider = nullptr;
 lv_obj_t* hold_duration_value_label = nullptr;
-lv_obj_t* computer_usb_status_label = nullptr;
 lv_obj_t* computer_name_textarea = nullptr;
 lv_obj_t* computer_ble_status_label = nullptr;
+lv_obj_t* computer_enable_switch = nullptr;
 lv_obj_t* keyboard_enable_switch = nullptr;
 lv_obj_t* keyboard_status_label = nullptr;
 lv_obj_t* keyboard_device_list = nullptr;
@@ -426,27 +426,36 @@ void onHoldDurationSliderChanged(lv_event_t* event) {
 }
 
 void refreshComputerConnectionStatus() {
-  if (computer_usb_status_label == nullptr || computer_ble_status_label == nullptr) {
+  if (computer_ble_status_label == nullptr) {
     return;
   }
 
-  if (computerOutputUsbReady()) {
-    lv_label_set_text(computer_usb_status_label, "USB: Connected");
-    lv_obj_set_style_text_color(computer_usb_status_label, lv_color_hex(0x44DD66), 0);
-  } else {
-    lv_label_set_text(computer_usb_status_label, "USB: Not connected");
-    lv_obj_set_style_text_color(computer_usb_status_label, lv_color_hex(0xAAAAAA), 0);
+  if (computer_enable_switch != nullptr) {
+    if (computerOutputBleIsEnabled()) {
+      lv_obj_add_state(computer_enable_switch, LV_STATE_CHECKED);
+    } else {
+      lv_obj_remove_state(computer_enable_switch, LV_STATE_CHECKED);
+    }
   }
 
   if (computer_name_textarea != nullptr) {
     lv_textarea_set_text(computer_name_textarea, computerOutputBleGetDeviceName());
   }
 
+  if (!computerOutputBleIsEnabled()) {
+    lv_label_set_text(computer_ble_status_label, "Disabled");
+    lv_obj_set_style_text_color(computer_ble_status_label, lv_color_hex(0xAAAAAA), 0);
+    return;
+  }
+
   if (computerOutputBleConnected()) {
-    lv_label_set_text(computer_ble_status_label, "Bluetooth: Connected");
+    lv_label_set_text(computer_ble_status_label, "Connected");
     lv_obj_set_style_text_color(computer_ble_status_label, lv_color_hex(0x44DD66), 0);
+  } else if (computerOutputBleAdvertising()) {
+    lv_label_set_text(computer_ble_status_label, "Waiting for pairing");
+    lv_obj_set_style_text_color(computer_ble_status_label, lv_color_hex(0xFFAA00), 0);
   } else {
-    lv_label_set_text(computer_ble_status_label, "Bluetooth: Not connected");
+    lv_label_set_text(computer_ble_status_label, "Not connected");
     lv_obj_set_style_text_color(computer_ble_status_label, lv_color_hex(0xAAAAAA), 0);
   }
 }
@@ -459,7 +468,8 @@ void refreshConnectionFlowIndicator() {
   const bool input_usb = usbKeyboardIsConnected();
   const bool input_ble = bleKeyboardIsConnected();
   const bool output_usb = computerOutputUsbReady();
-  const bool output_ble = computerOutputBleConnected();
+  const bool output_ble =
+      computerOutputBleIsEnabled() && computerOutputBleConnected();
 
   const char* input_icon;
   if (input_usb) {
@@ -558,6 +568,15 @@ void onComputerConnectionMenuClicked(lv_event_t* event) {
   (void)event;
   refreshComputerConnectionStatus();
   showScreen(Screen::kComputerConnection);
+}
+
+void onComputerEnableToggled(lv_event_t* event) {
+  lv_obj_t* toggle = lv_event_get_target_obj(event);
+  const bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
+  deviceSettingsSaveBleComputerEnabled(enabled);
+  computerOutputBleSetEnabled(enabled);
+  refreshComputerConnectionStatus();
+  refreshConnectionFlowIndicator();
 }
 
 void onKeyboardConnectionMenuClicked(lv_event_t* event) {
@@ -930,40 +949,55 @@ void buildScreens() {
   styleScreen(screen_computer_connection);
   createHeader(screen_computer_connection, "Computer", Screen::kBluetooth);
 
-  lv_obj_t* content_panel = lv_obj_create(screen_computer_connection);
-  lv_obj_set_size(content_panel, 296, 184);
-  lv_obj_align(content_panel, LV_ALIGN_TOP_MID, 0, 48);
-  lv_obj_set_style_bg_color(content_panel, lv_color_hex(0x2A2A2A), 0);
-  lv_obj_set_style_bg_opa(content_panel, LV_OPA_COVER, 0);
-  lv_obj_set_style_border_width(content_panel, 0, 0);
-  lv_obj_set_style_radius(content_panel, 8, 0);
-  lv_obj_set_style_pad_all(content_panel, 12, 0);
-  lv_obj_remove_flag(content_panel, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_t* computer_panel = lv_obj_create(screen_computer_connection);
+  lv_obj_set_size(computer_panel, 296, 184);
+  lv_obj_align(computer_panel, LV_ALIGN_TOP_MID, 0, 48);
+  lv_obj_set_style_bg_color(computer_panel, lv_color_hex(0x2A2A2A), 0);
+  lv_obj_set_style_bg_opa(computer_panel, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_width(computer_panel, 0, 0);
+  lv_obj_set_style_radius(computer_panel, 8, 0);
+  lv_obj_set_style_pad_all(computer_panel, 12, 0);
+  lv_obj_set_flex_flow(computer_panel, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(computer_panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START,
+                        LV_FLEX_ALIGN_START);
+  lv_obj_set_style_pad_row(computer_panel, 12, 0);
+  lv_obj_remove_flag(computer_panel, LV_OBJ_FLAG_SCROLLABLE);
 
-  computer_usb_status_label = lv_label_create(content_panel);
-  lv_label_set_text(computer_usb_status_label, "USB: --");
-  lv_obj_set_style_text_font(computer_usb_status_label, &lv_font_montserrat_14, 0);
-  lv_obj_align(computer_usb_status_label, LV_ALIGN_TOP_LEFT, 0, 0);
+  lv_obj_t* computer_toggle_row = lv_obj_create(computer_panel);
+  lv_obj_set_size(computer_toggle_row, LV_PCT(100), 32);
+  lv_obj_set_style_bg_opa(computer_toggle_row, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(computer_toggle_row, 0, 0);
+  lv_obj_set_style_pad_all(computer_toggle_row, 0, 0);
+  lv_obj_remove_flag(computer_toggle_row, LV_OBJ_FLAG_SCROLLABLE);
 
-  lv_obj_t* ble_name_heading = lv_label_create(content_panel);
-  lv_label_set_text(ble_name_heading, "Bluetooth name");
-  lv_obj_set_style_text_font(ble_name_heading, &lv_font_montserrat_14, 0);
-  lv_obj_set_style_text_color(ble_name_heading, lv_color_hex(0xAAAAAA), 0);
-  lv_obj_align(ble_name_heading, LV_ALIGN_TOP_LEFT, 0, 32);
+  lv_obj_t* computer_toggle_label = lv_label_create(computer_toggle_row);
+  lv_label_set_text(computer_toggle_label, "Bluetooth Computer");
+  lv_obj_set_style_text_font(computer_toggle_label, &lv_font_montserrat_14, 0);
+  lv_obj_align(computer_toggle_label, LV_ALIGN_LEFT_MID, 0, 0);
 
-  computer_name_textarea = lv_textarea_create(content_panel);
+  computer_enable_switch = lv_switch_create(computer_toggle_row);
+  lv_obj_align(computer_enable_switch, LV_ALIGN_RIGHT_MID, 0, 0);
+  lv_obj_add_event_cb(computer_enable_switch, onComputerEnableToggled,
+                      LV_EVENT_VALUE_CHANGED, nullptr);
+
+  computer_ble_status_label = lv_label_create(computer_panel);
+  lv_label_set_text(computer_ble_status_label, "Disabled");
+  lv_obj_set_style_text_font(computer_ble_status_label, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(computer_ble_status_label, lv_color_hex(0xAAAAAA), 0);
+  lv_obj_set_width(computer_ble_status_label, LV_PCT(100));
+
+  lv_obj_t* name_heading = lv_label_create(computer_panel);
+  lv_label_set_text(name_heading, "Device name");
+  lv_obj_set_style_text_font(name_heading, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(name_heading, lv_color_hex(0xAAAAAA), 0);
+
+  computer_name_textarea = lv_textarea_create(computer_panel);
   lv_obj_set_size(computer_name_textarea, LV_PCT(100), 36);
-  lv_obj_align(computer_name_textarea, LV_ALIGN_TOP_MID, 0, 52);
   lv_textarea_set_one_line(computer_name_textarea, true);
   lv_textarea_set_max_length(computer_name_textarea, 15);
   lv_textarea_set_text(computer_name_textarea, kDefaultBleComputerName);
   lv_obj_remove_flag(computer_name_textarea, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_remove_flag(computer_name_textarea, LV_OBJ_FLAG_CLICK_FOCUSABLE);
-
-  computer_ble_status_label = lv_label_create(content_panel);
-  lv_label_set_text(computer_ble_status_label, "Bluetooth: --");
-  lv_obj_set_style_text_font(computer_ble_status_label, &lv_font_montserrat_14, 0);
-  lv_obj_align(computer_ble_status_label, LV_ALIGN_TOP_LEFT, 0, 96);
 
   screen_keyboard_connection = lv_obj_create(nullptr);
   styleScreen(screen_keyboard_connection);

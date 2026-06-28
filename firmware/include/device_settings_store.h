@@ -14,6 +14,8 @@ void deviceSettingsSaveHoldDurationMs(uint32_t ms);
 
 void deviceSettingsSaveBleComputerName(const char* name);
 const char* deviceSettingsGetBleComputerName();
+void deviceSettingsSaveBleComputerEnabled(bool enabled);
+bool deviceSettingsGetBleComputerEnabled();
 
 void deviceSettingsSaveBleKeyboardEnabled(bool enabled);
 bool deviceSettingsGetBleKeyboardEnabled();

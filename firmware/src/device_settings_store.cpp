@@ -14,6 +14,7 @@ constexpr char kNamespace[] = "echolocation";
 constexpr char kKeyVolume[] = "volume";
 constexpr char kKeyHoldMs[] = "hold_ms";
 constexpr char kKeyBleComputerName[] = "bt_pc";
+constexpr char kKeyBleComputerEnabled[] = "bt_pc_en";
 constexpr char kKeyBleKeyboardEnabled[] = "bt_kb_en";
 constexpr char kKeyBleKeyboardMac[] = "bt_kb_mac";
 constexpr char kKeyBleKeyboardName[] = "bt_kb_name";
@@ -22,6 +23,7 @@ constexpr char kKeyBleKeyboardAddrType[] = "bt_kb_type";
 Preferences prefs;
 
 char ble_computer_name[16] = "echolocation";
+bool ble_computer_enabled = true;
 bool ble_keyboard_enabled = false;
 uint8_t ble_keyboard_mac[6] = {};
 uint8_t ble_keyboard_addr_type = 0;
@@ -50,6 +52,7 @@ void deviceSettingsLoad() {
   const uint8_t volume = prefs.getUChar(kKeyVolume, kDefaultVolume);
   const uint32_t hold_ms = prefs.getUInt(kKeyHoldMs, kDefaultHoldDurationMs);
   prefs.getString(kKeyBleComputerName, ble_computer_name, sizeof(ble_computer_name));
+  ble_computer_enabled = prefs.getBool(kKeyBleComputerEnabled, true);
   ble_keyboard_enabled = prefs.getBool(kKeyBleKeyboardEnabled, false);
   const size_t mac_len = prefs.getBytesLength(kKeyBleKeyboardMac);
   if (mac_len == 6) {
@@ -71,7 +74,7 @@ void deviceSettingsLoad() {
   uiSetBleComputerName(ble_computer_name);
 
   computerOutputBleSetDeviceName(ble_computer_name);
-  computerOutputBleSetEnabled(true);
+  computerOutputBleSetEnabled(ble_computer_enabled);
 
   bleKeyboardSetEnabled(ble_keyboard_enabled);
   if (ble_keyboard_enabled && macIsValid(ble_keyboard_mac)) {
@@ -107,6 +110,15 @@ void deviceSettingsSaveBleComputerName(const char* name) {
 }
 
 const char* deviceSettingsGetBleComputerName() { return ble_computer_name; }
+
+void deviceSettingsSaveBleComputerEnabled(bool enabled) {
+  ble_computer_enabled = enabled;
+  prefs.begin(kNamespace, false);
+  prefs.putBool(kKeyBleComputerEnabled, enabled);
+  prefs.end();
+}
+
+bool deviceSettingsGetBleComputerEnabled() { return ble_computer_enabled; }
 
 void deviceSettingsSaveBleKeyboardEnabled(bool enabled) {
   ble_keyboard_enabled = enabled;
