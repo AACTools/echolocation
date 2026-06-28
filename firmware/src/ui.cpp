@@ -425,21 +425,68 @@ void onHoldDurationSliderChanged(lv_event_t* event) {
   updateHoldDurationLabel();
 }
 
+void syncUsbComputerBleOverride() {
+  static bool last_usb_connected = false;
+  const bool usb_connected = computerOutputUsbReady();
+
+  if (usb_connected) {
+    if (computerOutputBleIsEnabled()) {
+      computerOutputBleSetEnabled(false);
+    }
+  } else if (last_usb_connected && deviceSettingsGetBleComputerEnabled()) {
+    computerOutputBleSetEnabled(true);
+  }
+
+  last_usb_connected = usb_connected;
+}
+
+void syncUsbKeyboardBleOverride() {
+  static bool last_usb_connected = false;
+  const bool usb_connected = usbKeyboardIsConnected();
+
+  if (usb_connected) {
+    if (bleKeyboardIsEnabled()) {
+      bleKeyboardSetEnabled(false);
+    }
+  } else if (last_usb_connected && deviceSettingsGetBleKeyboardEnabled()) {
+    bleKeyboardSetEnabled(true);
+  }
+
+  last_usb_connected = usb_connected;
+}
+
 void refreshComputerConnectionStatus() {
   if (computer_ble_status_label == nullptr) {
     return;
   }
 
+  syncUsbComputerBleOverride();
+
+  const bool usb_connected = computerOutputUsbReady();
+
   if (computer_enable_switch != nullptr) {
-    if (computerOutputBleIsEnabled()) {
-      lv_obj_add_state(computer_enable_switch, LV_STATE_CHECKED);
-    } else {
+    if (usb_connected) {
       lv_obj_remove_state(computer_enable_switch, LV_STATE_CHECKED);
+      lv_obj_add_state(computer_enable_switch, LV_STATE_DISABLED);
+    } else {
+      lv_obj_remove_state(computer_enable_switch, LV_STATE_DISABLED);
+      if (computerOutputBleIsEnabled()) {
+        lv_obj_add_state(computer_enable_switch, LV_STATE_CHECKED);
+      } else {
+        lv_obj_remove_state(computer_enable_switch, LV_STATE_CHECKED);
+      }
     }
   }
 
   if (computer_name_textarea != nullptr) {
     lv_textarea_set_text(computer_name_textarea, computerOutputBleGetDeviceName());
+  }
+
+  if (usb_connected) {
+    lv_label_set_text(computer_ble_status_label,
+                      "Bluetooth unavailable — device is connected via USB");
+    lv_obj_set_style_text_color(computer_ble_status_label, lv_color_hex(0xFFAA00), 0);
+    return;
   }
 
   if (!computerOutputBleIsEnabled()) {
@@ -571,6 +618,11 @@ void onComputerConnectionMenuClicked(lv_event_t* event) {
 }
 
 void onComputerEnableToggled(lv_event_t* event) {
+  if (computerOutputUsbReady()) {
+    refreshComputerConnectionStatus();
+    return;
+  }
+
   lv_obj_t* toggle = lv_event_get_target_obj(event);
   const bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
   deviceSettingsSaveBleComputerEnabled(enabled);
@@ -585,6 +637,11 @@ void onKeyboardConnectionMenuClicked(lv_event_t* event) {
 }
 
 void onKeyboardEnableToggled(lv_event_t* event) {
+  if (usbKeyboardIsConnected()) {
+    refreshKeyboardConnectionStatus();
+    return;
+  }
+
   lv_obj_t* toggle = lv_event_get_target_obj(event);
   const bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
   deviceSettingsSaveBleKeyboardEnabled(enabled);
@@ -608,6 +665,13 @@ void onKeyboardDeviceClicked(lv_event_t* event) {
 
 void updateKeyboardStatusLabel() {
   if (keyboard_status_label == nullptr) {
+    return;
+  }
+
+  if (usbKeyboardIsConnected()) {
+    lv_label_set_text(keyboard_status_label,
+                      "Bluetooth unavailable — USB keyboard connected");
+    lv_obj_set_style_text_color(keyboard_status_label, lv_color_hex(0xFFAA00), 0);
     return;
   }
 
@@ -726,17 +790,35 @@ bool keyboardDeviceListNeedsRebuild() {
 }
 
 void refreshKeyboardConnectionStatus() {
+  syncUsbKeyboardBleOverride();
+
+  const bool usb_connected = usbKeyboardIsConnected();
+
   if (keyboard_enable_switch != nullptr) {
-    if (bleKeyboardIsEnabled()) {
-      lv_obj_add_state(keyboard_enable_switch, LV_STATE_CHECKED);
-    } else {
+    if (usb_connected) {
       lv_obj_remove_state(keyboard_enable_switch, LV_STATE_CHECKED);
+      lv_obj_add_state(keyboard_enable_switch, LV_STATE_DISABLED);
+    } else {
+      lv_obj_remove_state(keyboard_enable_switch, LV_STATE_DISABLED);
+      if (bleKeyboardIsEnabled()) {
+        lv_obj_add_state(keyboard_enable_switch, LV_STATE_CHECKED);
+      } else {
+        lv_obj_remove_state(keyboard_enable_switch, LV_STATE_CHECKED);
+      }
+    }
+  }
+
+  if (keyboard_device_list != nullptr) {
+    if (usb_connected) {
+      lv_obj_add_flag(keyboard_device_list, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_remove_flag(keyboard_device_list, LV_OBJ_FLAG_HIDDEN);
     }
   }
 
   updateKeyboardStatusLabel();
 
-  if (current_screen == Screen::kKeyboardConnection &&
+  if (!usb_connected && current_screen == Screen::kKeyboardConnection &&
       keyboardDeviceListNeedsRebuild()) {
     rebuildKeyboardDeviceList();
   }
@@ -1080,6 +1162,7 @@ void uiPump() { lvglPortTick(); }
 
 void uiSetKeyboardConnected(bool connected) {
   (void)connected;
+  refreshKeyboardConnectionStatus();
   refreshConnectionFlowIndicator();
 }
 
