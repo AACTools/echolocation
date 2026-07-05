@@ -53,11 +53,6 @@ void speakerDetectBegin() {
   pending_count = requiredDebouncePolls(external_connected);
   last_poll_ms = millis();
   i2c_fail_count = 0;
-
-#ifdef ECHOLOCATION_BLE_DEBUG
-  Serial.printf("[speaker] module=%d inserted=%d\n", module_present,
-                external_connected);
-#endif
 }
 
 bool speakerDetectPoll() {
@@ -74,12 +69,6 @@ bool speakerDetectPoll() {
   bool inserted = false;
   if (!readHpInsertStatus(&inserted)) {
     ++i2c_fail_count;
-#ifdef ECHOLOCATION_BLE_DEBUG
-    if ((i2c_fail_count % 10) == 1) {
-      Serial.printf("[speaker] hp read failed count=%lu\n",
-                    static_cast<unsigned long>(i2c_fail_count));
-    }
-#endif
     return false;
   }
   i2c_fail_count = 0;
@@ -103,10 +92,6 @@ bool speakerDetectPoll() {
   }
 
   external_connected = pending_connected;
-
-#ifdef ECHOLOCATION_BLE_DEBUG
-  Serial.printf("[speaker] route changed inserted=%d\n", external_connected);
-#endif
 
   return true;
 }

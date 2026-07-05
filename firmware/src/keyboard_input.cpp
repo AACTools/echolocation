@@ -3,8 +3,6 @@
 #include "computer_output.h"
 #include "key_audio.h"
 #include "ui.h"
-#include "usb_keyboard.h"
-
 #include <Arduino.h>
 
 #include <string.h>
@@ -118,13 +116,6 @@ uint8_t hidKeyToAscii(uint8_t mod, uint8_t key) {
   }
 }
 
-bool sourceAllowed(KeyboardInputSource source) {
-  if (source == KeyboardInputSource::kBle && usbKeyboardIsConnected()) {
-    return false;
-  }
-  return true;
-}
-
 void normalizeBootReport(const uint8_t* report, size_t len, uint8_t normalized[8]) {
   memset(normalized, 0, 8);
 
@@ -172,8 +163,8 @@ bool keyboardInputKeyToLabel(uint8_t mod, uint8_t key, char* out, size_t out_len
   return false;
 }
 
-void keyboardInputOnKeyDown(KeyboardInputSource source, uint8_t mod, uint8_t key) {
-  if (!sourceAllowed(source) || key == 0) {
+void keyboardInputOnKeyDown(uint8_t mod, uint8_t key) {
+  if (key == 0) {
     return;
   }
 
@@ -206,23 +197,15 @@ void keyboardInputOnKeyDown(KeyboardInputSource source, uint8_t mod, uint8_t key
   keyAudioPlayForLabel(label);
 }
 
-void keyboardInputOnKeyUp(KeyboardInputSource source, uint8_t mod, uint8_t key) {
-  if (!sourceAllowed(source)) {
-    return;
-  }
-
+void keyboardInputOnKeyUp(uint8_t mod, uint8_t key) {
   if (key == held_key && mod == held_mod) {
     held_key = 0;
     held_mod = 0;
   }
 }
 
-void keyboardInputProcessBootReport(KeyboardInputSource source, uint8_t* prev_state,
-                                    const uint8_t* report, size_t len) {
-  if (!sourceAllowed(source)) {
-    return;
-  }
-
+void keyboardInputProcessBootReport(uint8_t* prev_state, const uint8_t* report,
+                                    size_t len) {
   uint8_t normalized[8] = {};
   normalizeBootReport(report, len, normalized);
 
@@ -243,10 +226,10 @@ void keyboardInputProcessBootReport(KeyboardInputSource source, uint8_t* prev_st
       }
     }
     if (!down && normalized[i] != 0) {
-      keyboardInputOnKeyDown(source, normalized[0], normalized[i]);
+      keyboardInputOnKeyDown(normalized[0], normalized[i]);
     }
     if (!up && prev_state[i] != 0) {
-      keyboardInputOnKeyUp(source, prev_state[0], prev_state[i]);
+      keyboardInputOnKeyUp(prev_state[0], prev_state[i]);
     }
   }
 

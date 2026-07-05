@@ -27,8 +27,7 @@ class KeyboardParser : public KeyboardReportParser {
   void Parse(USBHID* hid, bool is_rpt_id, uint8_t len, uint8_t* buf) override {
     (void)hid;
     (void)is_rpt_id;
-    keyboardInputProcessBootReport(KeyboardInputSource::kUsb, prev_report_state, buf,
-                                   len);
+    keyboardInputProcessBootReport(prev_report_state, buf, len);
   }
 };
 

@@ -211,11 +211,6 @@ void speakerRouteApply() {
 
   speakerRouteStop();
   active_route = desired;
-
-#ifdef ECHOLOCATION_BLE_DEBUG
-  Serial.printf("[speaker] route apply external=%d\n",
-                desired == ActiveRoute::kExternal ? 1 : 0);
-#endif
 }
 
 void speakerRouteStop() {
