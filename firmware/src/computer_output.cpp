@@ -33,3 +33,7 @@ bool computerOutputUsbReady() {
   return false;
 #endif
 }
+
+bool computerOutputBluetoothConnected() {
+  return false;
+}

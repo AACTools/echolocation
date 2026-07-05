@@ -85,6 +85,7 @@ void loop() {
   lvglPortTick();
   computerOutputTick();
   uiRefreshConnectionFlow();
+  uiRefreshBluetoothOutputStatus();
   if (speakerDetectPoll()) {
     speakerRouteApply();
     uiRefreshSpeakerOutput();

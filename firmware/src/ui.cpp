@@ -13,12 +13,16 @@
 #include <stdio.h>
 #include <string.h>
 
+LV_FONT_DECLARE(lv_font_montserrat_14_bold);
+
 namespace {
 
 enum class Screen {
   kLoading,
   kMain,
   kSettings,
+  kBluetooth,
+  kComputerOutput,
 #ifdef ECHOLOCATION_DEBUG
   kDebug,
 #endif
@@ -30,14 +34,19 @@ enum class Screen {
 const lv_color_t kBgColor = lv_color_hex(0x1A1A1A);
 const lv_color_t kHeaderColor = lv_color_hex(0x2A2A2A);
 const lv_color_t kAccentColor = lv_color_hex(0x0066FF);
+const lv_color_t kConnectedColor = lv_color_hex(0x44DD66);
 
 constexpr uint32_t kMinHoldDurationMs = 100;
 constexpr uint32_t kMaxHoldDurationMs = 3000;
+constexpr uint32_t kBluetoothOutputDotsIntervalMs = 400;
+constexpr uint8_t kBluetoothOutputMaxDots = 9;
 
 lv_obj_t* screen_loading = nullptr;
 lv_obj_t* loading_status_label = nullptr;
 lv_obj_t* screen_main = nullptr;
 lv_obj_t* screen_settings = nullptr;
+lv_obj_t* screen_bluetooth = nullptr;
+lv_obj_t* screen_computer_output = nullptr;
 #ifdef ECHOLOCATION_DEBUG
 lv_obj_t* screen_debug = nullptr;
 #endif
@@ -56,6 +65,9 @@ lv_obj_t* volume_slider = nullptr;
 lv_obj_t* volume_value_label = nullptr;
 lv_obj_t* hold_duration_slider = nullptr;
 lv_obj_t* hold_duration_value_label = nullptr;
+lv_obj_t* bluetooth_output_switch = nullptr;
+lv_obj_t* bluetooth_output_status_label = nullptr;
+lv_timer_t* bluetooth_output_dots_timer = nullptr;
 
 Screen current_screen = Screen::kLoading;
 
@@ -64,8 +76,21 @@ lv_obj_t* battery_labels[kMaxBatteryLabels] = {};
 size_t battery_label_count = 0;
 
 uint32_t hold_duration_ms = kDefaultHoldDurationMs;
+bool bluetooth_output_enabled = kDefaultBluetoothOutput;
+uint8_t bluetooth_output_dot_count = 1;
+
+enum class BluetoothOutputDisplayState {
+  kHidden,
+  kReady,
+  kConnected,
+};
+
+BluetoothOutputDisplayState displayed_bluetooth_output_state =
+    BluetoothOutputDisplayState::kHidden;
 
 void showScreen(Screen screen);
+
+void refreshBluetoothOutputStatus();
 
 void registerBatteryLabel(lv_obj_t* label) {
   if (battery_label_count < kMaxBatteryLabels) {
@@ -153,6 +178,12 @@ void showScreen(Screen screen) {
       break;
     case Screen::kSettings:
       target = screen_settings;
+      break;
+    case Screen::kBluetooth:
+      target = screen_bluetooth;
+      break;
+    case Screen::kComputerOutput:
+      target = screen_computer_output;
       break;
 #ifdef ECHOLOCATION_DEBUG
     case Screen::kDebug:
@@ -305,6 +336,108 @@ void onDebugMenuClicked(lv_event_t* event) {
 void onSettingsClicked(lv_event_t* event) {
   (void)event;
   showScreen(Screen::kSettings);
+}
+
+void onBluetoothMenuClicked(lv_event_t* event) {
+  (void)event;
+  showScreen(Screen::kBluetooth);
+}
+
+void onComputerOutputMenuClicked(lv_event_t* event) {
+  (void)event;
+  refreshBluetoothOutputStatus();
+  showScreen(Screen::kComputerOutput);
+}
+
+void updateReadyForConnectionLabel() {
+  if (bluetooth_output_status_label == nullptr) {
+    return;
+  }
+
+  char text[48];
+  const char* base = "Ready for connection";
+  const size_t base_len = strlen(base);
+  memcpy(text, base, base_len);
+  for (uint8_t i = 0; i < bluetooth_output_dot_count; ++i) {
+    text[base_len + i] = '.';
+  }
+  text[base_len + bluetooth_output_dot_count] = '\0';
+  lv_label_set_text(bluetooth_output_status_label, text);
+}
+
+void onBluetoothOutputDotsTimer(lv_timer_t* timer) {
+  (void)timer;
+  if (bluetooth_output_status_label == nullptr ||
+      !bluetooth_output_enabled || computerOutputBluetoothConnected()) {
+    return;
+  }
+
+  bluetooth_output_dot_count++;
+  if (bluetooth_output_dot_count > kBluetoothOutputMaxDots) {
+    bluetooth_output_dot_count = 1;
+  }
+  updateReadyForConnectionLabel();
+}
+
+void refreshBluetoothOutputStatus() {
+  if (bluetooth_output_status_label == nullptr) {
+    return;
+  }
+
+  BluetoothOutputDisplayState state;
+  if (!bluetooth_output_enabled) {
+    state = BluetoothOutputDisplayState::kHidden;
+  } else if (computerOutputBluetoothConnected()) {
+    state = BluetoothOutputDisplayState::kConnected;
+  } else {
+    state = BluetoothOutputDisplayState::kReady;
+  }
+
+  if (state == displayed_bluetooth_output_state) {
+    return;
+  }
+  displayed_bluetooth_output_state = state;
+
+  switch (state) {
+    case BluetoothOutputDisplayState::kHidden:
+      lv_obj_add_flag(bluetooth_output_status_label, LV_OBJ_FLAG_HIDDEN);
+      if (bluetooth_output_dots_timer != nullptr) {
+        lv_timer_pause(bluetooth_output_dots_timer);
+      }
+      break;
+
+    case BluetoothOutputDisplayState::kConnected:
+      lv_obj_remove_flag(bluetooth_output_status_label, LV_OBJ_FLAG_HIDDEN);
+      if (bluetooth_output_dots_timer != nullptr) {
+        lv_timer_pause(bluetooth_output_dots_timer);
+      }
+      lv_label_set_text(bluetooth_output_status_label, "Connected");
+      lv_obj_set_style_text_color(bluetooth_output_status_label, kConnectedColor, 0);
+      break;
+
+    case BluetoothOutputDisplayState::kReady:
+      lv_obj_remove_flag(bluetooth_output_status_label, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_set_style_text_color(bluetooth_output_status_label, kAccentColor, 0);
+      bluetooth_output_dot_count = 1;
+      updateReadyForConnectionLabel();
+
+      if (bluetooth_output_dots_timer == nullptr) {
+        bluetooth_output_dots_timer = lv_timer_create(onBluetoothOutputDotsTimer,
+                                                      kBluetoothOutputDotsIntervalMs,
+                                                      nullptr);
+      } else {
+        lv_timer_reset(bluetooth_output_dots_timer);
+        lv_timer_resume(bluetooth_output_dots_timer);
+      }
+      break;
+  }
+}
+
+void onBluetoothOutputSwitchChanged(lv_event_t* event) {
+  lv_obj_t* sw = lv_event_get_target_obj(event);
+  bluetooth_output_enabled = lv_obj_has_state(sw, LV_STATE_CHECKED);
+  deviceSettingsSaveBluetoothOutput(bluetooth_output_enabled);
+  refreshBluetoothOutputStatus();
 }
 
 void updateVolumeLabel() {
@@ -537,12 +670,77 @@ void buildScreens() {
   createHeader(screen_settings, "Settings", Screen::kMain);
 
   lv_obj_t* settings_menu_list = createScrollableMenuList(screen_settings);
+  createMenuListButton(settings_menu_list, "Bluetooth", onBluetoothMenuClicked);
 #ifdef ECHOLOCATION_DEBUG
   createMenuListButton(settings_menu_list, "Debug", onDebugMenuClicked);
 #endif
   createMenuListButton(settings_menu_list, "Volume", onVolumeMenuClicked);
   createMenuListButton(settings_menu_list, "Hold Duration", onHoldDurationMenuClicked);
   createMenuListButton(settings_menu_list, "Factory Defaults", onFactoryResetMenuClicked);
+
+  screen_bluetooth = lv_obj_create(nullptr);
+  styleScreen(screen_bluetooth);
+  createHeader(screen_bluetooth, "Bluetooth", Screen::kSettings);
+
+  lv_obj_t* bluetooth_menu_list = createScrollableMenuList(screen_bluetooth);
+  createMenuListButton(bluetooth_menu_list, "Computer / Output",
+                         onComputerOutputMenuClicked);
+
+  screen_computer_output = lv_obj_create(nullptr);
+  styleScreen(screen_computer_output);
+  createHeader(screen_computer_output, "Computer / Output", Screen::kBluetooth);
+
+  lv_obj_t* bluetooth_output_row = lv_obj_create(screen_computer_output);
+  lv_obj_set_size(bluetooth_output_row, LV_PCT(100), 44);
+  lv_obj_align(bluetooth_output_row, LV_ALIGN_TOP_MID, 0, 40);
+  lv_obj_set_style_bg_opa(bluetooth_output_row, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(bluetooth_output_row, 0, 0);
+  lv_obj_set_style_pad_hor(bluetooth_output_row, 12, 0);
+  lv_obj_remove_flag(bluetooth_output_row, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_flex_flow(bluetooth_output_row, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(bluetooth_output_row, LV_FLEX_ALIGN_SPACE_BETWEEN,
+                        LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+  lv_obj_t* bluetooth_output_label = lv_label_create(bluetooth_output_row);
+  lv_label_set_text(bluetooth_output_label, "Bluetooth Output");
+  lv_obj_set_style_text_font(bluetooth_output_label, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_color(bluetooth_output_label, lv_color_white(), 0);
+
+  bluetooth_output_switch = lv_switch_create(bluetooth_output_row);
+  if (bluetooth_output_enabled) {
+    lv_obj_add_state(bluetooth_output_switch, LV_STATE_CHECKED);
+  }
+  lv_obj_add_event_cb(bluetooth_output_switch, onBluetoothOutputSwitchChanged,
+                      LV_EVENT_VALUE_CHANGED, nullptr);
+
+  bluetooth_output_status_label = lv_label_create(screen_computer_output);
+  lv_label_set_text(bluetooth_output_status_label, "Ready for connection.");
+  lv_obj_set_style_text_font(bluetooth_output_status_label, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(bluetooth_output_status_label, kAccentColor, 0);
+  lv_obj_align(bluetooth_output_status_label, LV_ALIGN_TOP_LEFT, 12, 88);
+  lv_obj_add_flag(bluetooth_output_status_label, LV_OBJ_FLAG_HIDDEN);
+
+  lv_obj_t* connect_instructions = lv_spangroup_create(screen_computer_output);
+  lv_obj_set_width(connect_instructions, 296);
+  lv_obj_set_style_text_color(connect_instructions, lv_color_white(), 0);
+  lv_obj_set_style_text_font(connect_instructions, &lv_font_montserrat_14, 0);
+  lv_spangroup_set_mode(connect_instructions, LV_SPAN_MODE_BREAK);
+  lv_obj_align(connect_instructions, LV_ALIGN_TOP_LEFT, 12, 116);
+
+  lv_span_t* instructions_prefix = lv_spangroup_add_span(connect_instructions);
+  lv_span_set_text(instructions_prefix,
+                   "To connect, go to the bluetooth settings on your chosen "
+                   "device and search for new devices to connect to. Click on '");
+
+  lv_span_t* instructions_device_name = lv_spangroup_add_span(connect_instructions);
+  lv_span_set_text(instructions_device_name, "echolocation");
+  lv_style_set_text_font(lv_span_get_style(instructions_device_name),
+                         &lv_font_montserrat_14_bold);
+
+  lv_span_t* instructions_suffix = lv_spangroup_add_span(connect_instructions);
+  lv_span_set_text(instructions_suffix, "' to connect to this device");
+
+  refreshBluetoothOutputStatus();
 
 #ifdef ECHOLOCATION_DEBUG
   screen_debug = lv_obj_create(nullptr);
@@ -640,6 +838,18 @@ void buildScreens() {
 
 }  // namespace
 
+void uiSetBluetoothOutput(bool enabled) {
+  bluetooth_output_enabled = enabled;
+  if (bluetooth_output_switch != nullptr) {
+    if (enabled) {
+      lv_obj_add_state(bluetooth_output_switch, LV_STATE_CHECKED);
+    } else {
+      lv_obj_remove_state(bluetooth_output_switch, LV_STATE_CHECKED);
+    }
+  }
+  refreshBluetoothOutputStatus();
+}
+
 void uiInit() {
   buildLoadingScreen();
   showScreen(Screen::kLoading);
@@ -716,5 +926,7 @@ void uiSetHoldDurationMs(uint32_t ms) {
 }
 
 void uiRefreshConnectionFlow() { refreshConnectionFlowIndicator(); }
+
+void uiRefreshBluetoothOutputStatus() { refreshBluetoothOutputStatus(); }
 
 void uiRefreshSpeakerOutput() { refreshSpeakerOutputIndicator(); }
