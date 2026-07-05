@@ -46,6 +46,9 @@ void setup() {
   delay(200);
   Serial.println();
   Serial.println("[boot] echolocation");
+#ifdef ECHOLOCATION_DEBUG
+  Serial.println("[boot] debug build");
+#endif
   M5.Display.setBrightness(128);
 
   lvglPortInit();

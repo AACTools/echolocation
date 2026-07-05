@@ -36,6 +36,15 @@ pio device monitor -b 115200           # serial logs
 
 The first build downloads the ESP32 platform and libraries and may take several minutes.
 
+### Debug build
+
+To show the Debug settings screen and use USB serial only (the device will not act as a USB keyboard to your computer):
+
+```bash
+pio run -e m5stack-cores3-debug -t upload
+pio device monitor -b 115200
+```
+
 ## microSD card
 
 Key speech is read from WAV files on a FAT32 microSD card at `/audio/keys/*.wav`.
