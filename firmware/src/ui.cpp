@@ -437,6 +437,7 @@ void onBluetoothOutputSwitchChanged(lv_event_t* event) {
   lv_obj_t* sw = lv_event_get_target_obj(event);
   bluetooth_output_enabled = lv_obj_has_state(sw, LV_STATE_CHECKED);
   deviceSettingsSaveBluetoothOutput(bluetooth_output_enabled);
+  computerOutputSetBluetoothEnabled(bluetooth_output_enabled);
   refreshBluetoothOutputStatus();
 }
 
@@ -504,15 +505,23 @@ void refreshConnectionFlowIndicator() {
 
   const bool input_usb = usbKeyboardIsConnected();
   const bool output_usb = computerOutputUsbReady();
+  const bool output_ble = computerOutputBluetoothConnected();
 
   const char* input_icon = input_usb ? LV_SYMBOL_USB : LV_SYMBOL_CLOSE;
-  const char* output_icon = output_usb ? LV_SYMBOL_USB : LV_SYMBOL_CLOSE;
+  const char* output_icon;
+  if (output_usb) {
+    output_icon = LV_SYMBOL_USB;
+  } else if (output_ble) {
+    output_icon = LV_SYMBOL_BLUETOOTH;
+  } else {
+    output_icon = LV_SYMBOL_CLOSE;
+  }
 
   char text[32];
   snprintf(text, sizeof(text), "%s %s %s", input_icon, LV_SYMBOL_RIGHT, output_icon);
   lv_label_set_text(connection_flow_label, text);
 
-  const bool active = input_usb || output_usb;
+  const bool active = input_usb || output_usb || output_ble;
   lv_obj_set_style_text_color(connection_flow_label,
                               active ? kAccentColor : lv_color_hex(0x666666), 0);
 }
@@ -847,6 +856,7 @@ void uiSetBluetoothOutput(bool enabled) {
       lv_obj_remove_state(bluetooth_output_switch, LV_STATE_CHECKED);
     }
   }
+  computerOutputSetBluetoothEnabled(enabled);
   refreshBluetoothOutputStatus();
 }
 

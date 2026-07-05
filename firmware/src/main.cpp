@@ -56,11 +56,14 @@ void setup() {
 
   uiSetLoadingStatus("Loading settings...");
   pumpLoadingUi();
-  deviceSettingsLoad();
 
   uiSetLoadingStatus("Starting computer output...");
   pumpLoadingUi();
   computerOutputBegin();
+
+  uiSetLoadingStatus("Loading settings...");
+  pumpLoadingUi();
+  deviceSettingsLoad();
 
   uiSetLoadingStatus("Starting USB keyboard...");
   pumpLoadingUi();

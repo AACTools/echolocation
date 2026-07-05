@@ -77,6 +77,10 @@ Upload often fails when the device is already acting as a USB keyboard:
 
 Use a data-capable USB-C cable connected directly to your computer (not through an unpowered hub).
 
+## Bluetooth computer output
+
+Settings → **Bluetooth** → **Computer / Output** enables a BLE HID keyboard named **echolocation**. When the toggle is on, pair from your phone, tablet, or Mac in Bluetooth settings. Held keys (after the configured hold duration) are sent to the connected BLE host. USB computer output takes priority when the USB-C cable is connected to a host.
+
 ## Project layout
 
 ```
