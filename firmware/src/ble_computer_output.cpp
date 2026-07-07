@@ -1,5 +1,6 @@
 #include "ble_computer_output.h"
 
+#include <HIDTypes.h>
 #include <NimBLEDevice.h>
 #include <NimBLEHIDDevice.h>
 
@@ -9,34 +10,50 @@ namespace {
 
 constexpr char kDeviceName[] = "echolocation";
 constexpr uint8_t kKeyboardReportId = 1;
-constexpr size_t kKeyboardReportSize = 8;
 
-// Standard HID keyboard report map with report ID 1.
+struct KeyReport {
+  uint8_t modifiers;
+  uint8_t reserved;
+  uint8_t keys[6];
+};
+
+static_assert(sizeof(KeyReport) == 8, "HID keyboard input report must be 8 bytes");
+
+// Standard keyboard report map (matches ESP32-BLE-Keyboard / USB HID appendix C).
 static const uint8_t kKeyboardReportMap[] = {
-    0x05, 0x01,  // Usage Page (Generic Desktop)
-    0x09, 0x06,  // Usage (Keyboard)
-    0xA1, 0x01,  // Collection (Application)
-    0x85, kKeyboardReportId,  // Report ID (1)
-    0x05, 0x07,  // Usage Page (Key Codes)
-    0x19, 0x00,  // Usage Minimum (0)
-    0x29, 0xE7,  // Usage Maximum (231)
-    0x15, 0x00,  // Logical Minimum (0)
-    0x25, 0x01,  // Logical Maximum (1)
-    0x75, 0x01,  // Report Size (1)
-    0x95, 0x08,  // Report Count (8) modifiers
-    0x81, 0x02,  // Input (Data, Var, Abs)
-    0x95, 0x01,  // Report Count (1)
-    0x75, 0x08,  // Report Size (8) reserved byte
-    0x81, 0x01,  // Input (Const, Array)
-    0x95, 0x06,  // Report Count (6)
-    0x75, 0x08,  // Report Size (8) key slots
-    0x15, 0x00,  // Logical Minimum (0)
-    0x25, 0x65,  // Logical Maximum (101)
-    0x05, 0x07,  // Usage Page (Key Codes)
-    0x19, 0x00,  // Usage Minimum (0)
-    0x29, 0x65,  // Usage Maximum (101)
-    0x81, 0x00,  // Input (Data, Array)
-    0xC0,        // End Collection
+    USAGE_PAGE(1), 0x01,       // Generic Desktop
+    USAGE(1), 0x06,            // Keyboard
+    COLLECTION(1), 0x01,       // Application
+    REPORT_ID(1), kKeyboardReportId,
+    USAGE_PAGE(1), 0x07,       // Keyboard/Keypad
+    USAGE_MINIMUM(1), 0xE0,    // Left Control
+    USAGE_MAXIMUM(1), 0xE7,    // Right GUI
+    LOGICAL_MINIMUM(1), 0x00,
+    LOGICAL_MAXIMUM(1), 0x01,
+    REPORT_SIZE(1), 0x01,
+    REPORT_COUNT(1), 0x08,     // 8 modifier bits
+    HIDINPUT(1), 0x02,
+    REPORT_COUNT(1), 0x01,     // 1 reserved byte
+    REPORT_SIZE(1), 0x08,
+    HIDINPUT(1), 0x01,
+    REPORT_COUNT(1), 0x05,     // LED output bits
+    REPORT_SIZE(1), 0x01,
+    USAGE_PAGE(1), 0x08,       // LEDs
+    USAGE_MINIMUM(1), 0x01,
+    USAGE_MAXIMUM(1), 0x05,
+    HIDOUTPUT(1), 0x02,
+    REPORT_COUNT(1), 0x01,     // LED padding
+    REPORT_SIZE(1), 0x03,
+    HIDOUTPUT(1), 0x01,
+    REPORT_COUNT(1), 0x06,     // 6 key bytes
+    REPORT_SIZE(1), 0x08,
+    LOGICAL_MINIMUM(1), 0x00,
+    LOGICAL_MAXIMUM(2), 0xE7, 0x00,
+    USAGE_PAGE(1), 0x07,
+    USAGE_MINIMUM(1), 0x00,
+    USAGE_MAXIMUM(2), 0xE7, 0x00,
+    HIDINPUT(1), 0x00,
+    END_COLLECTION(0),
 };
 
 NimBLEServer* ble_server = nullptr;
@@ -47,11 +64,34 @@ bool stack_ready = false;
 bool output_enabled = false;
 bool host_connected = false;
 
+void sendKeyboardReport(uint8_t mod, uint8_t key) {
+  if (ble_input_report == nullptr) {
+    return;
+  }
+
+  uint8_t report[sizeof(KeyReport)] = {};
+  report[0] = mod;
+  report[2] = key;
+  ble_input_report->setValue(report, sizeof(report));
+  ble_input_report->notify();
+}
+
+void releaseAllKeys() {
+  if (ble_input_report == nullptr) {
+    return;
+  }
+
+  uint8_t report[sizeof(KeyReport)] = {};
+  ble_input_report->setValue(report, sizeof(report));
+  ble_input_report->notify();
+}
+
 class BleComputerOutputServerCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* server, NimBLEConnInfo& conn_info) override {
     (void)server;
     (void)conn_info;
     host_connected = true;
+    releaseAllKeys();
     Serial.println("[ble-out] connected");
   }
 
@@ -69,23 +109,6 @@ class BleComputerOutputServerCallbacks : public NimBLEServerCallbacks {
 };
 
 BleComputerOutputServerCallbacks server_callbacks;
-
-void sendKeyboardReport(uint8_t mod, uint8_t key) {
-  if (ble_input_report == nullptr) {
-    return;
-  }
-
-  uint8_t report[kKeyboardReportSize + 1] = {};
-  report[0] = kKeyboardReportId;
-  report[1] = mod;
-  report[3] = key;
-  ble_input_report->setValue(report, sizeof(report));
-  ble_input_report->notify();
-}
-
-void releaseAllKeys() {
-  sendKeyboardReport(0, 0);
-}
 
 void stopAdvertising() {
   if (!stack_ready) {
@@ -128,7 +151,7 @@ void bleComputerOutputBegin() {
   }
 
   NimBLEDevice::init(kDeviceName);
-  NimBLEDevice::setSecurityAuth(true, false, true);
+  NimBLEDevice::setSecurityAuth(true, true, true);
   NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
 
   ble_server = NimBLEDevice::createServer();
@@ -136,12 +159,15 @@ void bleComputerOutputBegin() {
 
   ble_hid = new NimBLEHIDDevice(ble_server);
   ble_input_report = ble_hid->getInputReport(kKeyboardReportId);
+  ble_hid->getOutputReport(kKeyboardReportId);
   ble_hid->setReportMap(const_cast<uint8_t*>(kKeyboardReportMap),
                         sizeof(kKeyboardReportMap));
   ble_hid->setManufacturer("echolocation");
   ble_hid->setPnp(0x02, 0xE502, 0xA111, 0x0210);
-  ble_hid->setHidInfo(0x00, 0x02);
+  ble_hid->setHidInfo(0x00, 0x01);
   ble_hid->setBatteryLevel(100);
+
+  releaseAllKeys();
 
   ble_server->start();
   stack_ready = true;

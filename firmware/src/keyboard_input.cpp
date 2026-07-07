@@ -13,9 +13,11 @@ uint8_t displayed_key = 0;
 uint8_t displayed_mod = 0;
 uint8_t held_key = 0;
 uint8_t held_mod = 0;
-unsigned long key_pressed_at = 0;
 bool box_shown = false;
 bool key_sent_to_computer = false;
+uint8_t current_report[8] = {};
+uint8_t report_snapshot[8] = {};
+uint32_t last_report_change_ms = 0;
 
 const char* hidKeyName(uint8_t key) {
   switch (key) {
@@ -135,6 +137,38 @@ void normalizeBootReport(const uint8_t* report, size_t len, uint8_t normalized[8
   }
 }
 
+uint8_t activeKeyCountInReport(const uint8_t report[8]) {
+  uint8_t count = 0;
+  for (uint8_t i = 2; i < 8; ++i) {
+    if (report[i] != 0 && report[i] != 1) {
+      count++;
+    }
+  }
+  return count;
+}
+
+bool onlyKeyInReport(const uint8_t report[8], uint8_t key) {
+  if (activeKeyCountInReport(report) != 1) {
+    return false;
+  }
+  for (uint8_t i = 2; i < 8; ++i) {
+    if (report[i] != 0 && report[i] != 1) {
+      return report[i] == key;
+    }
+  }
+  return false;
+}
+
+void noteReportChanged(const uint8_t report[8]) {
+  if (memcmp(report, report_snapshot, 8) == 0) {
+    return;
+  }
+  memcpy(report_snapshot, report, 8);
+  last_report_change_ms = millis();
+  box_shown = false;
+  uiSetKeyBoxOutline(false);
+}
+
 }  // namespace
 
 bool keyboardInputKeyToLabel(uint8_t mod, uint8_t key, char* out, size_t out_len) {
@@ -178,7 +212,6 @@ void keyboardInputOnKeyDown(uint8_t mod, uint8_t key) {
     displayed_key = key;
     displayed_mod = mod;
     box_shown = false;
-    key_sent_to_computer = false;
     uiSetKeyBoxOutline(false);
     uiSetPressedKey(label);
   }
@@ -186,10 +219,8 @@ void keyboardInputOnKeyDown(uint8_t mod, uint8_t key) {
   if (held_key != key || held_mod != mod) {
     held_key = key;
     held_mod = mod;
-    key_pressed_at = millis();
     if (!is_new_key) {
       box_shown = false;
-      key_sent_to_computer = false;
       uiSetKeyBoxOutline(false);
     }
   }
@@ -234,17 +265,40 @@ void keyboardInputProcessBootReport(uint8_t* prev_state, const uint8_t* report,
   }
 
   memcpy(prev_state, normalized, 8);
+  memcpy(current_report, normalized, 8);
+  noteReportChanged(normalized);
+
+  if (activeKeyCountInReport(normalized) == 0) {
+    held_key = 0;
+    held_mod = 0;
+    box_shown = false;
+    key_sent_to_computer = false;
+    uiSetKeyBoxOutline(false);
+  }
 }
 
 void keyboardInputTick() {
-  if (held_key != 0 && !box_shown && held_key == displayed_key &&
-      held_mod == displayed_mod &&
-      millis() - key_pressed_at >= uiGetHoldDurationMs()) {
+  if (held_key == 0 || held_key != displayed_key || held_mod != displayed_mod) {
+    return;
+  }
+  if (!onlyKeyInReport(current_report, held_key)) {
+    return;
+  }
+  if (millis() - last_report_change_ms < uiGetHoldDurationMs()) {
+    return;
+  }
+
+  if (!box_shown) {
     box_shown = true;
     uiSetKeyBoxOutline(true);
-    if (!key_sent_to_computer) {
-      computerOutputSendKey(held_mod, held_key);
-      key_sent_to_computer = true;
-    }
   }
+  if (key_sent_to_computer) {
+    return;
+  }
+
+  // Mark sent before the blocking output call. computerOutputSendKey uses
+  // delay() for BLE HID timing; the main loop keeps running during that delay
+  // and would otherwise re-enter here for phantom rollover keys.
+  key_sent_to_computer = true;
+  computerOutputSendKey(held_mod, held_key);
 }
