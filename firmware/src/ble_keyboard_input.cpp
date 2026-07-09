@@ -15,6 +15,8 @@
 #include <Preferences.h>
 
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -31,6 +33,7 @@ constexpr uint16_t kAppearanceKeyboard = 0x03C1;
 constexpr uint32_t kScanDurationSec = 0;
 constexpr uint32_t kConnectTimeoutMs = 5000;
 constexpr uint32_t kReconnectIntervalMs = 10000;
+constexpr size_t kHidReportQueueDepth = 16;
 
 struct ScanEntry {
   char name[32];
@@ -45,6 +48,7 @@ struct BondedKeyboard {
 };
 
 NimBLEClient* ble_client = nullptr;
+QueueHandle_t hid_report_queue = nullptr;
 bool module_ready = false;
 bool input_enabled = false;
 bool scan_requested = false;
@@ -472,6 +476,22 @@ void clearConnectedState() {
   connected_name[0] = '\0';
   connected_address[0] = '\0';
   memset(prev_report_state, 0, sizeof(prev_report_state));
+  if (hid_report_queue != nullptr) {
+    uint8_t report[8];
+    while (xQueueReceive(hid_report_queue, report, 0) == pdTRUE) {
+    }
+  }
+}
+
+void processPendingHidReports() {
+  if (hid_report_queue == nullptr || usbKeyboardIsConnected()) {
+    return;
+  }
+
+  uint8_t report[8];
+  while (xQueueReceive(hid_report_queue, report, 0) == pdTRUE) {
+    keyboardInputProcessBootReport(prev_report_state, report, sizeof(report));
+  }
 }
 
 void updateScanResultsFromDevice(const NimBLEAdvertisedDevice* device) {
@@ -576,7 +596,8 @@ void processHidReport(NimBLERemoteCharacteristic* characteristic,
                         uint8_t* data, size_t length, bool is_notify) {
   (void)characteristic;
   (void)is_notify;
-  if (!keyboard_connected || usbKeyboardIsConnected() || data == nullptr) {
+  if (!keyboard_connected || usbKeyboardIsConnected() || data == nullptr ||
+      hid_report_queue == nullptr) {
     return;
   }
 
@@ -591,7 +612,7 @@ void processHidReport(NimBLERemoteCharacteristic* characteristic,
     return;
   }
 
-  keyboardInputProcessBootReport(prev_report_state, report, sizeof(report));
+  xQueueSend(hid_report_queue, report, 0);
 }
 
 bool subscribeToKeyboardReports() {
@@ -799,6 +820,9 @@ void bleKeyboardInputBegin() {
   }
 
   loadBondedKeyboards();
+  if (hid_report_queue == nullptr) {
+    hid_report_queue = xQueueCreate(kHidReportQueueDepth, sizeof(uint8_t[8]));
+  }
   module_ready = true;
   Serial.println("[ble-kb] module ready");
 }
@@ -824,6 +848,8 @@ void bleKeyboardInputTick() {
   if (!module_ready || !input_enabled) {
     return;
   }
+
+  processPendingHidReports();
 
   if (connecting) {
     processConnectTick();
