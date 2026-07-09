@@ -27,7 +27,7 @@ The primary risk under test is **connection state drift**: stale UI, stuck “Co
 ### Software / build
 
 - Flash the latest production firmware (not `ECHOLOCATION_BLE_DEBUG` unless debugging a specific failure).
-- Optional: keep a serial monitor open at 115200 baud to capture `[BLE-KB]`, `[speaker]`, and boot logs during failures.
+- Optional: keep a serial monitor open at 115200 baud to capture `[ble-kb]`, `[speaker]`, and boot logs during failures.
 
 ### Baseline checks (run once before stress cycles)
 
@@ -35,8 +35,8 @@ The primary risk under test is **connection state drift**: stale UI, stuck “Co
 2. Settings → open each menu (Volume, Hold Duration, Bluetooth) — navigation is responsive.
 3. Main screen shows connection flow indicator (`input → output` icons) and battery level.
 4. Press a key with **no** keyboard connected — nothing should crash; no spurious audio.
-5. Settings → Bluetooth → Keyboard Connection — BLE toggle works; status label updates.
-6. Settings → Bluetooth → Computer Connection — USB and Bluetooth status labels render.
+5. Settings → Bluetooth → **Keyboard** — toggle off shows only **See paired devices**; toggle on shows **Searching...** (or **Connected** if already paired).
+6. Settings → Bluetooth → **Computer / Output** — USB and Bluetooth status labels render.
 
 Record firmware version / git commit and the peripheral models used. Re-run relevant sections after any firmware change.
 
@@ -85,31 +85,68 @@ Mark **FAIL** on first violation; note the cycle number, what was connected, and
 
 ## 2. Bluetooth keyboard — repeated connect / disconnect
 
-**Goal:** BLE client, scan, HID subscription, and auto-reconnect behave after many connect/disconnect cycles.
+**Goal:** BLE central (NimBLE client), scan, HID subscription, bonding, and auto-reconnect behave after many connect/disconnect cycles.
 
-**Setup:** Enable Bluetooth keyboard (toggle on). Have the BLE keyboard powered and in pairing/discoverable mode initially.
+**Setup:** Settings → Bluetooth → **Keyboard** → toggle **on**. Have a BLE keyboard (e.g. Apple Magic Keyboard) powered and in pairing/discoverable mode for the first pairing.
+
+### 2a. First pairing via search
 
 | Step | Action |
 |------|--------|
-| 1 | Settings → Bluetooth → Keyboard Connection — wait for keyboard in device list |
-| 2 | Tap the keyboard entry — status shows “Connecting…”, then “Connected to …” |
-| 3 | Press keys — spoken and shown on screen |
-| 4 | **Disconnect A** — power off the keyboard (or move out of BLE range >10 m) |
-| 5 | Observe status returns to “Not connected” or “Scanning…”; main input icon clears |
-| 6 | **Reconnect** — power keyboard back on; wait for auto-reconnect or tap device again |
-| 7 | Press keys — still works |
-| 8 | Repeat steps 4–7 **20 times** |
+| 1 | Main Keyboard screen shows **Searching...** (blue, animated dots) and **See paired devices** + **Search for keyboard** |
+| 2 | Tap **Search for keyboard** — search screen shows **Searching...** and a live device list |
+| 3 | Tap your keyboard in the list — spinner appears beside the name; button is disabled |
+| 4 | On success, screen returns to main Keyboard screen with **Connected** (green) |
+| 5 | Press keys — each is spoken within ~50 ms and shown on the main screen |
+| 6 | **See paired devices** — connected keyboard shows a green tick beside its name |
 
-**Disconnect method B (5 cycles):** Settings → toggle Bluetooth Keyboard **off**, then **on**, reconnect manually.
+### 2b. Search blocked while connected
 
-**Disconnect method C (5 cycles):** Select a **different** BLE keyboard in the list (if available), then switch back to the original.
+| Step | Action |
+|------|--------|
+| 1 | With keyboard connected, tap **Search for keyboard** |
+| 2 | Search screen shows **Connected** (green) and instructional text — no device list, no scanning |
+| 3 | Message explains you must forget the current device or turn the keyboard off to pair another |
+
+### 2c. Forget and re-pair
+
+| Step | Action |
+|------|--------|
+| 1 | **See paired devices** → tap the connected keyboard → **Forget device** |
+| 2 | Returns to main Keyboard screen; status returns to **Searching...** if toggle still on |
+| 3 | **Search for keyboard** → discover → connect again (repeat 2a steps 2–5) |
+
+### 2d. Repeated disconnect / reconnect (20 cycles)
+
+| Step | Action |
+|------|--------|
+| 1 | With keyboard connected and working, **Disconnect A** — power off the keyboard (or move out of BLE range >10 m) |
+| 2 | Main screen input icon clears; Keyboard screen shows **Searching...** |
+| 3 | **Reconnect** — power keyboard back on; wait for auto-reconnect (or tap device in **See paired devices**) |
+| 4 | Status returns to **Connected**; press keys — still works |
+| 5 | Repeat steps 1–4 **20 times** |
+
+**Disconnect method B (5 cycles):** Settings → toggle Bluetooth Keyboard **off**, then **on** — reconnect via search or paired list.
+
+**Disconnect method C (5 cycles):** Pair a **different** BLE keyboard (forget first), then switch back to the original.
+
+### 2e. Simultaneous BLE computer output
+
+With BLE keyboard connected, enable Settings → Bluetooth → **Computer / Output** and pair a host to **echolocation**:
+
+| Step | Action |
+|------|--------|
+| 1 | Both input (Bluetooth icon) and output (Bluetooth icon) show on main screen |
+| 2 | Short tap keys — spoken only |
+| 3 | Hold a key past hold duration — exactly one keypress sent to the BLE host |
+| 4 | During an active **Search for keyboard** session (not connected), Computer/Output advertising pauses; resumes when search stops |
 
 **Failure modes to watch:**
 
-- Stuck on “Connecting…” for >15 s
-- “Connection failed” on every attempt after a prior success
-- Keys silent while UI still shows connected
-- Auto-reconnect loops without ever giving up or succeeding (serial log shows repeated attempts)
+- Stuck connecting (spinner beside device name) for >15 s with no recovery
+- Keys silent while UI still shows **Connected**
+- Auto-reconnect loops without ever succeeding (serial `[ble-kb]` logs)
+- Search list visible while already connected (should be blocked)
 
 ---
 
@@ -268,10 +305,10 @@ Also toggle BLE off/on while USB is connected (5 times) — USB should remain un
 | Step | Action |
 |------|--------|
 | 1 | Set volume and hold duration to non-default values |
-| 2 | Connect BLE keyboard |
+| 2 | Connect BLE keyboard (paired via search) |
 | 3 | Power off device completely; power on |
-| 4 | Volume and hold duration restored |
-| 5 | BLE keyboard reconnects or is one tap away (saved device) |
+| 4 | Volume and hold duration restored; Bluetooth Keyboard toggle still on |
+| 5 | BLE keyboard auto-reconnects in background; main screen shows **Connected** when link is up, **Searching...** while reconnecting |
 | 6 | Press keys — speech works |
 | 7 | Repeat power cycle **5 times** without reconfiguring |
 
@@ -347,5 +384,6 @@ Tester:
 
 ## Out of scope / not yet in firmware
 
-- **Factory reset** (listed in spec, not in current UI) — add a section here when implemented.
-- Automated tests — this document is manual only; unit tests in the repo complement but do not replace these hardware cycles.
+- Automated hardware-in-the-loop tests — this document is manual only; unit tests in the repo complement but do not replace these hardware cycles.
+
+**Factory reset:** Settings → **Factory Defaults** clears keyboard bonds independently of computer/output bonds. After reset, re-pair the BLE keyboard via **Search for keyboard**.

@@ -77,9 +77,28 @@ Upload often fails when the device is already acting as a USB keyboard:
 
 Use a data-capable USB-C cable connected directly to your computer (not through an unpowered hub).
 
-## Bluetooth computer output
+## Bluetooth
 
-Settings → **Bluetooth** → **Computer / Output** enables a BLE HID keyboard named **echolocation**. When the toggle is on, pair from your phone, tablet, or Mac in Bluetooth settings. Held keys (after the configured hold duration) are sent to the connected BLE host. USB computer output takes priority when the USB-C cable is connected to a host.
+Keyboard input and computer output use the same ESP32 BLE radio but are independent in code, settings, and UI. Both can be enabled at the same time.
+
+### Bluetooth keyboard input
+
+Settings → **Bluetooth** → **Keyboard** connects the device **to an external BLE keyboard** (NimBLE central role).
+
+- Toggle **on** — starts scan/reconnect; status shows **Searching...** until connected, then **Connected** (green).
+- Toggle **off** — stops scan, disconnects, and hides status.
+- **Search for keyboard** — live scan of HID keyboards; tap a device to pair. While already connected, search shows a blocked message (no list) until you forget the current device.
+- **See paired devices** — bonded keyboards; green tick on the connected device; tap → **Forget device** to remove the bond.
+- On boot, if the toggle is on and a bonded keyboard exists, the device auto-reconnects in the background.
+- USB keyboard input takes priority when a USB keyboard is also plugged in.
+
+Serial logs use the `[ble-kb]` prefix. See [test-plan.md](../test-plan.md) §2 for manual validation steps (including Apple Magic Keyboard and simultaneous computer output).
+
+### Bluetooth computer output
+
+Settings → **Bluetooth** → **Computer / Output** enables a BLE HID keyboard named **echolocation** (NimBLE peripheral role). When the toggle is on, pair from your phone, tablet, or Mac in Bluetooth settings. Held keys (after the configured hold duration) are sent to the connected BLE host. USB computer output takes priority when the USB-C cable is connected to a host.
+
+Output advertising pauses while the keyboard input module is actively scanning for new keyboards; an existing output connection is not dropped.
 
 ## Project layout
 

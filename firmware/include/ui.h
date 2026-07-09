@@ -14,7 +14,9 @@ void uiSetBattery(int percent, bool charging);
 uint32_t uiGetHoldDurationMs();
 void uiSetHoldDurationMs(uint32_t ms);
 void uiSetBluetoothOutput(bool enabled);
+void uiSetBluetoothKeyboard(bool enabled);
 
 void uiRefreshConnectionFlow();
 void uiRefreshBluetoothOutputStatus();
+void uiRefreshBluetoothKeyboardStatus();
 void uiRefreshSpeakerOutput();

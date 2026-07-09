@@ -1,5 +1,6 @@
 #include "ui.h"
 
+#include "ble_keyboard_input.h"
 #include "computer_output.h"
 #include "device_settings_store.h"
 #include "key_audio.h"
@@ -23,6 +24,10 @@ enum class Screen {
   kSettings,
   kBluetooth,
   kComputerOutput,
+  kBluetoothKeyboard,
+  kBluetoothKeyboardSearch,
+  kBluetoothKeyboardPairedDevices,
+  kBluetoothKeyboardDevice,
 #ifdef ECHOLOCATION_DEBUG
   kDebug,
 #endif
@@ -40,6 +45,13 @@ constexpr uint32_t kMinHoldDurationMs = 100;
 constexpr uint32_t kMaxHoldDurationMs = 3000;
 constexpr uint32_t kBluetoothOutputDotsIntervalMs = 400;
 constexpr uint8_t kBluetoothOutputMaxDots = 9;
+constexpr int kDisplayHeight = 240;
+constexpr int kHeaderHeight = 40;
+constexpr int kKeyboardRowHeight = 44;
+constexpr int kKeyboardSectionGap = 8;
+constexpr size_t kMaxBluetoothKeyboardSlots = 8;
+constexpr int kKeyboardBaseActionButtonY = 116;
+constexpr int kSearchKeyboardListY = kHeaderHeight + 20 + 4;
 
 lv_obj_t* screen_loading = nullptr;
 lv_obj_t* loading_status_label = nullptr;
@@ -47,6 +59,11 @@ lv_obj_t* screen_main = nullptr;
 lv_obj_t* screen_settings = nullptr;
 lv_obj_t* screen_bluetooth = nullptr;
 lv_obj_t* screen_computer_output = nullptr;
+lv_obj_t* screen_bluetooth_keyboard = nullptr;
+lv_obj_t* screen_bluetooth_keyboard_search = nullptr;
+lv_obj_t* screen_bluetooth_keyboard_paired_devices = nullptr;
+lv_obj_t* screen_bluetooth_keyboard_device = nullptr;
+lv_obj_t* bluetooth_keyboard_device_title = nullptr;
 #ifdef ECHOLOCATION_DEBUG
 lv_obj_t* screen_debug = nullptr;
 #endif
@@ -67,7 +84,16 @@ lv_obj_t* hold_duration_slider = nullptr;
 lv_obj_t* hold_duration_value_label = nullptr;
 lv_obj_t* bluetooth_output_switch = nullptr;
 lv_obj_t* bluetooth_output_status_label = nullptr;
+lv_obj_t* bluetooth_keyboard_switch = nullptr;
+lv_obj_t* bluetooth_keyboard_status_label = nullptr;
+lv_obj_t* search_keyboard_action_container = nullptr;
+lv_obj_t* see_paired_devices_action_container = nullptr;
+lv_obj_t* search_keyboard_status_label = nullptr;
+lv_obj_t* search_keyboard_connected_message_label = nullptr;
+lv_obj_t* search_keyboard_devices_list = nullptr;
 lv_timer_t* bluetooth_output_dots_timer = nullptr;
+lv_timer_t* bluetooth_keyboard_dots_timer = nullptr;
+lv_timer_t* search_keyboard_dots_timer = nullptr;
 
 Screen current_screen = Screen::kLoading;
 
@@ -77,7 +103,28 @@ size_t battery_label_count = 0;
 
 uint32_t hold_duration_ms = kDefaultHoldDurationMs;
 bool bluetooth_output_enabled = kDefaultBluetoothOutput;
+bool bluetooth_keyboard_enabled = kDefaultBluetoothKeyboard;
 uint8_t bluetooth_output_dot_count = 1;
+uint8_t bluetooth_keyboard_dot_count = 1;
+uint8_t search_keyboard_dot_count = 1;
+bool search_connect_pending = false;
+
+struct SearchKeyboardDeviceUi {
+  lv_obj_t* button = nullptr;
+  lv_obj_t* label = nullptr;
+  lv_obj_t* spinner = nullptr;
+};
+
+struct PairedKeyboardDeviceUi {
+  lv_obj_t* button = nullptr;
+  lv_obj_t* connected_tick = nullptr;
+};
+
+SearchKeyboardDeviceUi search_keyboard_device_ui[kMaxBluetoothKeyboardSlots];
+PairedKeyboardDeviceUi paired_keyboard_device_ui[kMaxBluetoothKeyboardSlots];
+char search_device_addresses[kMaxBluetoothKeyboardSlots][18];
+char paired_device_addresses[kMaxBluetoothKeyboardSlots][18];
+lv_obj_t* paired_devices_list = nullptr;
 
 enum class BluetoothOutputDisplayState {
   kHidden,
@@ -88,9 +135,26 @@ enum class BluetoothOutputDisplayState {
 BluetoothOutputDisplayState displayed_bluetooth_output_state =
     BluetoothOutputDisplayState::kHidden;
 
+enum class BluetoothKeyboardDisplayState {
+  kHidden,
+  kSearching,
+  kConnected,
+};
+
+BluetoothKeyboardDisplayState displayed_bluetooth_keyboard_state =
+    BluetoothKeyboardDisplayState::kHidden;
+
 void showScreen(Screen screen);
 
 void refreshBluetoothOutputStatus();
+void refreshBluetoothKeyboardStatus();
+void updateBluetoothKeyboardActionButtons();
+void refreshPairedDeviceConnectionTick();
+void refreshSearchKeyboardStatus();
+void pauseSearchKeyboardStatus();
+void resetSearchKeyboardDeviceButtons();
+void refreshSearchKeyboardDeviceList();
+void refreshPairedKeyboardDeviceList();
 
 void registerBatteryLabel(lv_obj_t* label) {
   if (battery_label_count < kMaxBatteryLabels) {
@@ -185,6 +249,18 @@ void showScreen(Screen screen) {
     case Screen::kComputerOutput:
       target = screen_computer_output;
       break;
+    case Screen::kBluetoothKeyboard:
+      target = screen_bluetooth_keyboard;
+      break;
+    case Screen::kBluetoothKeyboardSearch:
+      target = screen_bluetooth_keyboard_search;
+      break;
+    case Screen::kBluetoothKeyboardPairedDevices:
+      target = screen_bluetooth_keyboard_paired_devices;
+      break;
+    case Screen::kBluetoothKeyboardDevice:
+      target = screen_bluetooth_keyboard_device;
+      break;
 #ifdef ECHOLOCATION_DEBUG
     case Screen::kDebug:
       target = screen_debug;
@@ -201,6 +277,11 @@ void showScreen(Screen screen) {
       break;
   }
   if (target != nullptr) {
+    if (current_screen == Screen::kBluetoothKeyboardSearch &&
+        screen != Screen::kBluetoothKeyboardSearch) {
+      pauseSearchKeyboardStatus();
+      bleKeyboardInputStopScan();
+    }
     lv_screen_load(target);
     current_screen = screen;
   }
@@ -213,7 +294,8 @@ void onBackClicked(lv_event_t* event) {
   showScreen(back_to);
 }
 
-lv_obj_t* createHeader(lv_obj_t* parent, const char* title, Screen back_to) {
+lv_obj_t* createHeader(lv_obj_t* parent, const char* title, Screen back_to,
+                       lv_obj_t** out_title_label = nullptr) {
   lv_obj_t* header = lv_obj_create(parent);
   lv_obj_set_size(header, LV_PCT(100), 40);
   lv_obj_align(header, LV_ALIGN_TOP_MID, 0, 0);
@@ -240,6 +322,9 @@ lv_obj_t* createHeader(lv_obj_t* parent, const char* title, Screen back_to) {
   lv_label_set_text(title_label, title);
   lv_obj_set_style_text_font(title_label, &lv_font_montserrat_16, 0);
   lv_obj_align(title_label, LV_ALIGN_CENTER, 0, 0);
+  if (out_title_label != nullptr) {
+    *out_title_label = title_label;
+  }
 
   createBatteryLabel(header, LV_ALIGN_RIGHT_MID, -4, 0);
 
@@ -247,7 +332,8 @@ lv_obj_t* createHeader(lv_obj_t* parent, const char* title, Screen back_to) {
 }
 
 lv_obj_t* createMenuListButton(lv_obj_t* parent, const char* label,
-                               lv_event_cb_t on_click) {
+                               lv_event_cb_t on_click, bool connected = false,
+                               lv_obj_t** out_connected_tick = nullptr) {
   lv_obj_t* button = lv_btn_create(parent);
   lv_obj_set_width(button, LV_PCT(100));
   lv_obj_set_height(button, 44);
@@ -260,6 +346,19 @@ lv_obj_t* createMenuListButton(lv_obj_t* parent, const char* label,
   lv_obj_set_style_text_font(button_label, &lv_font_montserrat_16, 0);
   lv_obj_align(button_label, LV_ALIGN_LEFT_MID, 12, 0);
 
+  if (connected || out_connected_tick != nullptr) {
+    lv_obj_t* connected_tick = lv_label_create(button);
+    lv_label_set_text(connected_tick, LV_SYMBOL_OK);
+    lv_obj_set_style_text_color(connected_tick, kConnectedColor, 0);
+    lv_obj_align(connected_tick, LV_ALIGN_RIGHT_MID, -32, 0);
+    if (!connected) {
+      lv_obj_add_flag(connected_tick, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (out_connected_tick != nullptr) {
+      *out_connected_tick = connected_tick;
+    }
+  }
+
   lv_obj_t* chevron = lv_label_create(button);
   lv_label_set_text(chevron, LV_SYMBOL_RIGHT);
   lv_obj_set_style_text_color(chevron, lv_color_hex(0x888888), 0);
@@ -268,10 +367,59 @@ lv_obj_t* createMenuListButton(lv_obj_t* parent, const char* label,
   return button;
 }
 
-lv_obj_t* createScrollableMenuList(lv_obj_t* parent) {
-  lv_obj_t* list = lv_obj_create(parent);
-  lv_obj_set_size(list, LV_PCT(100), 200);
-  lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 40);
+lv_obj_t* createSearchResultButton(lv_obj_t* parent, const char* label,
+                                   lv_event_cb_t on_click, lv_obj_t** out_label,
+                                   lv_obj_t** out_spinner) {
+  lv_obj_t* button = lv_btn_create(parent);
+  lv_obj_set_width(button, LV_PCT(100));
+  lv_obj_set_height(button, 44);
+  lv_obj_set_style_radius(button, 8, 0);
+  lv_obj_set_style_bg_color(button, lv_color_hex(0x2A2A2A), 0);
+  lv_obj_add_event_cb(button, on_click, LV_EVENT_CLICKED, nullptr);
+  lv_obj_remove_flag(button, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_flex_flow(button, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(button, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_hor(button, 12, 0);
+  lv_obj_set_style_pad_column(button, 8, 0);
+
+  lv_obj_t* button_label = lv_label_create(button);
+  lv_label_set_text(button_label, label);
+  lv_obj_set_style_text_font(button_label, &lv_font_montserrat_16, 0);
+
+  lv_obj_t* spinner = lv_spinner_create(button);
+  lv_obj_set_size(spinner, 24, 24);
+  lv_spinner_set_anim_params(spinner, 1000, 200);
+  lv_obj_add_flag(spinner, LV_OBJ_FLAG_HIDDEN);
+
+  if (out_label != nullptr) {
+    *out_label = button_label;
+  }
+  if (out_spinner != nullptr) {
+    *out_spinner = spinner;
+  }
+
+  return button;
+}
+
+lv_obj_t* createActionButton(lv_obj_t* parent, const char* label,
+                             lv_event_cb_t on_click) {
+  lv_obj_t* button = lv_btn_create(parent);
+  lv_obj_set_width(button, LV_PCT(100));
+  lv_obj_set_height(button, 44);
+  lv_obj_set_style_radius(button, 8, 0);
+  lv_obj_set_style_bg_color(button, lv_color_hex(0x2A2A2A), 0);
+  lv_obj_add_event_cb(button, on_click, LV_EVENT_CLICKED, nullptr);
+
+  lv_obj_t* button_label = lv_label_create(button);
+  lv_label_set_text(button_label, label);
+  lv_obj_set_style_text_font(button_label, &lv_font_montserrat_16, 0);
+  lv_obj_align(button_label, LV_ALIGN_LEFT_MID, 12, 0);
+
+  return button;
+}
+
+void styleScrollableList(lv_obj_t* list) {
   lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(list, 0, 0);
   lv_obj_set_style_pad_all(list, 12, 0);
@@ -287,7 +435,18 @@ lv_obj_t* createScrollableMenuList(lv_obj_t* parent) {
   lv_obj_set_style_bg_color(list, kAccentColor, LV_PART_SCROLLBAR);
   lv_obj_set_style_bg_opa(list, LV_OPA_70, LV_PART_SCROLLBAR);
   lv_obj_set_style_radius(list, 4, LV_PART_SCROLLBAR);
+}
+
+lv_obj_t* createScrollableList(lv_obj_t* parent, int y, int height) {
+  lv_obj_t* list = lv_obj_create(parent);
+  lv_obj_set_size(list, LV_PCT(100), height);
+  lv_obj_align(list, LV_ALIGN_TOP_MID, 0, y);
+  styleScrollableList(list);
   return list;
+}
+
+lv_obj_t* createScrollableMenuList(lv_obj_t* parent) {
+  return createScrollableList(parent, kHeaderHeight, 200);
 }
 
 #ifdef ECHOLOCATION_DEBUG
@@ -347,6 +506,87 @@ void onComputerOutputMenuClicked(lv_event_t* event) {
   (void)event;
   refreshBluetoothOutputStatus();
   showScreen(Screen::kComputerOutput);
+}
+
+void onBluetoothKeyboardMenuClicked(lv_event_t* event) {
+  (void)event;
+  if (bluetooth_keyboard_switch != nullptr) {
+    if (bluetooth_keyboard_enabled) {
+      lv_obj_add_state(bluetooth_keyboard_switch, LV_STATE_CHECKED);
+    } else {
+      lv_obj_remove_state(bluetooth_keyboard_switch, LV_STATE_CHECKED);
+    }
+  }
+  refreshBluetoothKeyboardStatus();
+  showScreen(Screen::kBluetoothKeyboard);
+}
+
+void onForgetDeviceClicked(lv_event_t* event) {
+  (void)event;
+  bleKeyboardInputForgetSelected();
+  displayed_bluetooth_keyboard_state = BluetoothKeyboardDisplayState::kHidden;
+  refreshPairedKeyboardDeviceList();
+  refreshBluetoothKeyboardStatus();
+  showScreen(Screen::kBluetoothKeyboard);
+}
+
+void onSearchKeyboardClicked(lv_event_t* event) {
+  (void)event;
+  resetSearchKeyboardDeviceButtons();
+  search_connect_pending = false;
+  if (!bleKeyboardInputIsConnected()) {
+    bleKeyboardInputStartScan();
+  } else {
+    bleKeyboardInputStopScan();
+  }
+  refreshSearchKeyboardStatus();
+  showScreen(Screen::kBluetoothKeyboardSearch);
+}
+
+void onSeePairedDevicesClicked(lv_event_t* event) {
+  (void)event;
+  refreshPairedKeyboardDeviceList();
+  showScreen(Screen::kBluetoothKeyboardPairedDevices);
+}
+
+void onPairedKeyboardDeviceClicked(lv_event_t* event) {
+  lv_obj_t* button = lv_event_get_current_target_obj(event);
+  const size_t index = static_cast<size_t>(
+      reinterpret_cast<intptr_t>(lv_obj_get_user_data(button)));
+  if (index >= kMaxBluetoothKeyboardSlots) {
+    return;
+  }
+
+  bleKeyboardInputSetSelectedAddress(paired_device_addresses[index]);
+  if (bluetooth_keyboard_device_title != nullptr) {
+    lv_obj_t* label = lv_obj_get_child(button, 0);
+    if (label != nullptr) {
+      lv_label_set_text(bluetooth_keyboard_device_title, lv_label_get_text(label));
+    }
+  }
+  showScreen(Screen::kBluetoothKeyboardDevice);
+}
+
+void onDiscoverableKeyboardDeviceClicked(lv_event_t* event) {
+  if (bleKeyboardInputIsConnecting() || search_connect_pending) {
+    return;
+  }
+
+  lv_obj_t* button = lv_event_get_current_target_obj(event);
+  const size_t index = static_cast<size_t>(
+      reinterpret_cast<intptr_t>(lv_obj_get_user_data(button)));
+  if (index >= kMaxBluetoothKeyboardSlots ||
+      search_device_addresses[index][0] == '\0') {
+    return;
+  }
+
+  SearchKeyboardDeviceUi& device_ui = search_keyboard_device_ui[index];
+  if (device_ui.spinner != nullptr) {
+    lv_obj_remove_flag(device_ui.spinner, LV_OBJ_FLAG_HIDDEN);
+  }
+  lv_obj_remove_flag(button, LV_OBJ_FLAG_CLICKABLE);
+  search_connect_pending = true;
+  bleKeyboardInputConnectByAddress(search_device_addresses[index]);
 }
 
 void updateReadyForConnectionLabel() {
@@ -441,6 +681,300 @@ void onBluetoothOutputSwitchChanged(lv_event_t* event) {
   refreshBluetoothOutputStatus();
 }
 
+void onBluetoothKeyboardSwitchChanged(lv_event_t* event) {
+  lv_obj_t* sw = lv_event_get_target_obj(event);
+  bluetooth_keyboard_enabled = lv_obj_has_state(sw, LV_STATE_CHECKED);
+  deviceSettingsSaveBluetoothKeyboard(bluetooth_keyboard_enabled);
+  bleKeyboardInputSetEnabled(bluetooth_keyboard_enabled);
+  displayed_bluetooth_keyboard_state = BluetoothKeyboardDisplayState::kHidden;
+  refreshBluetoothKeyboardStatus();
+}
+
+bool bluetoothKeyboardIsConnected() {
+  return bluetooth_keyboard_enabled && bleKeyboardInputIsConnected();
+}
+
+void refreshPairedDeviceConnectionTick() {
+  refreshPairedKeyboardDeviceList();
+}
+
+void refreshSearchKeyboardDeviceList() {
+  if (search_keyboard_devices_list == nullptr) {
+    return;
+  }
+
+  BleKeyboardDeviceInfo devices[kMaxBluetoothKeyboardSlots];
+  const size_t count =
+      bleKeyboardInputGetScanResults(devices, kMaxBluetoothKeyboardSlots);
+
+  for (size_t i = 0; i < kMaxBluetoothKeyboardSlots; ++i) {
+    SearchKeyboardDeviceUi& device_ui = search_keyboard_device_ui[i];
+    if (device_ui.button == nullptr) {
+      continue;
+    }
+
+    if (i < count) {
+      strncpy(search_device_addresses[i], devices[i].address,
+              sizeof(search_device_addresses[i]) - 1);
+      search_device_addresses[i][sizeof(search_device_addresses[i]) - 1] = '\0';
+      if (device_ui.label != nullptr) {
+        lv_label_set_text(device_ui.label, devices[i].name);
+        lv_obj_remove_flag(device_ui.label, LV_OBJ_FLAG_HIDDEN);
+      }
+      if (device_ui.spinner != nullptr) {
+        lv_obj_add_flag(device_ui.spinner, LV_OBJ_FLAG_HIDDEN);
+      }
+      lv_obj_remove_flag(device_ui.button, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(device_ui.button, LV_OBJ_FLAG_CLICKABLE);
+    } else {
+      search_device_addresses[i][0] = '\0';
+      lv_obj_add_flag(device_ui.button, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+}
+
+void refreshPairedKeyboardDeviceList() {
+  if (paired_devices_list == nullptr) {
+    return;
+  }
+
+  BleKeyboardDeviceInfo devices[kMaxBluetoothKeyboardSlots];
+  const size_t count =
+      bleKeyboardInputGetPairedDevices(devices, kMaxBluetoothKeyboardSlots);
+
+  for (size_t i = 0; i < kMaxBluetoothKeyboardSlots; ++i) {
+    PairedKeyboardDeviceUi& device_ui = paired_keyboard_device_ui[i];
+    if (device_ui.button == nullptr) {
+      continue;
+    }
+
+    if (i < count) {
+      strncpy(paired_device_addresses[i], devices[i].address,
+              sizeof(paired_device_addresses[i]) - 1);
+      paired_device_addresses[i][sizeof(paired_device_addresses[i]) - 1] = '\0';
+      lv_obj_t* label = lv_obj_get_child(device_ui.button, 0);
+      if (label != nullptr) {
+        lv_label_set_text(label, devices[i].name);
+      }
+      if (device_ui.connected_tick != nullptr) {
+        if (devices[i].connected) {
+          lv_obj_remove_flag(device_ui.connected_tick, LV_OBJ_FLAG_HIDDEN);
+        } else {
+          lv_obj_add_flag(device_ui.connected_tick, LV_OBJ_FLAG_HIDDEN);
+        }
+      }
+      lv_obj_remove_flag(device_ui.button, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      paired_device_addresses[i][0] = '\0';
+      lv_obj_add_flag(device_ui.button, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+}
+
+void updateBluetoothKeyboardActionButtons() {
+  if (see_paired_devices_action_container == nullptr ||
+      search_keyboard_action_container == nullptr) {
+    return;
+  }
+
+  lv_obj_align(see_paired_devices_action_container, LV_ALIGN_TOP_MID, 0,
+               kKeyboardBaseActionButtonY);
+
+  if (bluetooth_keyboard_enabled) {
+    lv_obj_remove_flag(search_keyboard_action_container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_align(search_keyboard_action_container, LV_ALIGN_TOP_MID, 0,
+                 kKeyboardBaseActionButtonY + kKeyboardRowHeight + kKeyboardSectionGap);
+  } else {
+    lv_obj_add_flag(search_keyboard_action_container, LV_OBJ_FLAG_HIDDEN);
+  }
+}
+
+void updateSearchingKeyboardLabel() {
+  if (bluetooth_keyboard_status_label == nullptr) {
+    return;
+  }
+
+  char text[48];
+  const char* base = "Searching";
+  const size_t base_len = strlen(base);
+  memcpy(text, base, base_len);
+  for (uint8_t i = 0; i < bluetooth_keyboard_dot_count; ++i) {
+    text[base_len + i] = '.';
+  }
+  text[base_len + bluetooth_keyboard_dot_count] = '\0';
+  lv_label_set_text(bluetooth_keyboard_status_label, text);
+}
+
+void onBluetoothKeyboardDotsTimer(lv_timer_t* timer) {
+  (void)timer;
+  if (bluetooth_keyboard_status_label == nullptr || !bluetooth_keyboard_enabled ||
+      bluetoothKeyboardIsConnected()) {
+    return;
+  }
+
+  bluetooth_keyboard_dot_count++;
+  if (bluetooth_keyboard_dot_count > kBluetoothOutputMaxDots) {
+    bluetooth_keyboard_dot_count = 1;
+  }
+  updateSearchingKeyboardLabel();
+}
+
+void refreshBluetoothKeyboardStatus() {
+  if (bluetooth_keyboard_status_label == nullptr) {
+    return;
+  }
+
+  updateBluetoothKeyboardActionButtons();
+
+  BluetoothKeyboardDisplayState state;
+  if (!bluetooth_keyboard_enabled) {
+    state = BluetoothKeyboardDisplayState::kHidden;
+  } else if (bluetoothKeyboardIsConnected()) {
+    state = BluetoothKeyboardDisplayState::kConnected;
+  } else {
+    state = BluetoothKeyboardDisplayState::kSearching;
+  }
+
+  if (state == displayed_bluetooth_keyboard_state) {
+    return;
+  }
+  displayed_bluetooth_keyboard_state = state;
+
+  switch (state) {
+    case BluetoothKeyboardDisplayState::kHidden:
+      lv_obj_add_flag(bluetooth_keyboard_status_label, LV_OBJ_FLAG_HIDDEN);
+      if (bluetooth_keyboard_dots_timer != nullptr) {
+        lv_timer_pause(bluetooth_keyboard_dots_timer);
+      }
+      break;
+
+    case BluetoothKeyboardDisplayState::kConnected:
+      lv_obj_remove_flag(bluetooth_keyboard_status_label, LV_OBJ_FLAG_HIDDEN);
+      if (bluetooth_keyboard_dots_timer != nullptr) {
+        lv_timer_pause(bluetooth_keyboard_dots_timer);
+      }
+      lv_label_set_text(bluetooth_keyboard_status_label, "Connected");
+      lv_obj_set_style_text_color(bluetooth_keyboard_status_label, kConnectedColor,
+                                  0);
+      break;
+
+    case BluetoothKeyboardDisplayState::kSearching:
+      lv_obj_remove_flag(bluetooth_keyboard_status_label, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_set_style_text_color(bluetooth_keyboard_status_label, kAccentColor, 0);
+      bluetooth_keyboard_dot_count = 1;
+      updateSearchingKeyboardLabel();
+
+      if (bluetooth_keyboard_dots_timer == nullptr) {
+        bluetooth_keyboard_dots_timer = lv_timer_create(
+            onBluetoothKeyboardDotsTimer, kBluetoothOutputDotsIntervalMs, nullptr);
+      } else {
+        lv_timer_reset(bluetooth_keyboard_dots_timer);
+        lv_timer_resume(bluetooth_keyboard_dots_timer);
+      }
+      break;
+  }
+}
+
+void updateSearchKeyboardStatusLabel() {
+  if (search_keyboard_status_label == nullptr) {
+    return;
+  }
+
+  char text[48];
+  const char* base = "Searching";
+  const size_t base_len = strlen(base);
+  memcpy(text, base, base_len);
+  for (uint8_t i = 0; i < search_keyboard_dot_count; ++i) {
+    text[base_len + i] = '.';
+  }
+  text[base_len + search_keyboard_dot_count] = '\0';
+  lv_label_set_text(search_keyboard_status_label, text);
+}
+
+void onSearchKeyboardDotsTimer(lv_timer_t* timer) {
+  (void)timer;
+  if (search_keyboard_status_label == nullptr ||
+      current_screen != Screen::kBluetoothKeyboardSearch ||
+      bleKeyboardInputIsConnected()) {
+    return;
+  }
+
+  search_keyboard_dot_count++;
+  if (search_keyboard_dot_count > kBluetoothOutputMaxDots) {
+    search_keyboard_dot_count = 1;
+  }
+  updateSearchKeyboardStatusLabel();
+}
+
+void refreshSearchKeyboardStatus() {
+  if (search_keyboard_status_label == nullptr) {
+    return;
+  }
+
+  if (bleKeyboardInputIsConnected()) {
+    if (search_keyboard_dots_timer != nullptr) {
+      lv_timer_pause(search_keyboard_dots_timer);
+    }
+    lv_label_set_text(search_keyboard_status_label, "Connected");
+    lv_obj_set_style_text_color(search_keyboard_status_label, kConnectedColor, 0);
+
+    if (search_keyboard_connected_message_label != nullptr) {
+      lv_obj_remove_flag(search_keyboard_connected_message_label, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (search_keyboard_devices_list != nullptr) {
+      lv_obj_add_flag(search_keyboard_devices_list, LV_OBJ_FLAG_HIDDEN);
+    }
+    return;
+  }
+
+  lv_obj_set_style_text_color(search_keyboard_status_label, kAccentColor, 0);
+  search_keyboard_dot_count = 1;
+  updateSearchKeyboardStatusLabel();
+
+  if (search_keyboard_dots_timer == nullptr) {
+    search_keyboard_dots_timer = lv_timer_create(onSearchKeyboardDotsTimer,
+                                                 kBluetoothOutputDotsIntervalMs,
+                                                 nullptr);
+  } else {
+    lv_timer_reset(search_keyboard_dots_timer);
+    lv_timer_resume(search_keyboard_dots_timer);
+  }
+
+  if (search_keyboard_connected_message_label != nullptr) {
+    lv_obj_add_flag(search_keyboard_connected_message_label, LV_OBJ_FLAG_HIDDEN);
+  }
+  if (search_keyboard_devices_list != nullptr) {
+    lv_obj_remove_flag(search_keyboard_devices_list, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_align(search_keyboard_devices_list, LV_ALIGN_TOP_MID, 0,
+                 kSearchKeyboardListY);
+    lv_obj_set_height(search_keyboard_devices_list,
+                      kDisplayHeight - kSearchKeyboardListY);
+  }
+  refreshSearchKeyboardDeviceList();
+}
+
+void pauseSearchKeyboardStatus() {
+  if (search_keyboard_dots_timer != nullptr) {
+    lv_timer_pause(search_keyboard_dots_timer);
+  }
+}
+
+void resetSearchKeyboardDeviceButtons() {
+  search_connect_pending = false;
+
+  for (size_t i = 0; i < kMaxBluetoothKeyboardSlots; ++i) {
+    SearchKeyboardDeviceUi& device_ui = search_keyboard_device_ui[i];
+    if (device_ui.button == nullptr) {
+      continue;
+    }
+
+    lv_obj_add_flag(device_ui.button, LV_OBJ_FLAG_CLICKABLE);
+    if (device_ui.spinner != nullptr) {
+      lv_obj_add_flag(device_ui.spinner, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+}
+
 void updateVolumeLabel() {
   if (volume_slider == nullptr || volume_value_label == nullptr) {
     return;
@@ -504,10 +1038,18 @@ void refreshConnectionFlowIndicator() {
   }
 
   const bool input_usb = usbKeyboardIsConnected();
+  const bool input_ble = bleKeyboardInputIsConnected();
   const bool output_usb = computerOutputUsbReady();
   const bool output_ble = computerOutputBluetoothConnected();
 
-  const char* input_icon = input_usb ? LV_SYMBOL_USB : LV_SYMBOL_CLOSE;
+  const char* input_icon;
+  if (input_usb) {
+    input_icon = LV_SYMBOL_USB;
+  } else if (input_ble) {
+    input_icon = LV_SYMBOL_BLUETOOTH;
+  } else {
+    input_icon = LV_SYMBOL_CLOSE;
+  }
   const char* output_icon;
   if (output_usb) {
     output_icon = LV_SYMBOL_USB;
@@ -521,7 +1063,7 @@ void refreshConnectionFlowIndicator() {
   snprintf(text, sizeof(text), "%s %s %s", input_icon, LV_SYMBOL_RIGHT, output_icon);
   lv_label_set_text(connection_flow_label, text);
 
-  const bool active = input_usb || output_usb || output_ble;
+  const bool active = input_usb || input_ble || output_usb || output_ble;
   lv_obj_set_style_text_color(connection_flow_label,
                               active ? kAccentColor : lv_color_hex(0x666666), 0);
 }
@@ -694,6 +1236,8 @@ void buildScreens() {
   lv_obj_t* bluetooth_menu_list = createScrollableMenuList(screen_bluetooth);
   createMenuListButton(bluetooth_menu_list, "Computer / Output",
                          onComputerOutputMenuClicked);
+  createMenuListButton(bluetooth_menu_list, "Keyboard",
+                         onBluetoothKeyboardMenuClicked);
 
   screen_computer_output = lv_obj_create(nullptr);
   styleScreen(screen_computer_output);
@@ -750,6 +1294,156 @@ void buildScreens() {
   lv_span_set_text(instructions_suffix, "' to connect to this device");
 
   refreshBluetoothOutputStatus();
+
+  screen_bluetooth_keyboard = lv_obj_create(nullptr);
+  styleScreen(screen_bluetooth_keyboard);
+  createHeader(screen_bluetooth_keyboard, "Keyboard", Screen::kBluetooth);
+
+  lv_obj_t* bluetooth_keyboard_row = lv_obj_create(screen_bluetooth_keyboard);
+  lv_obj_set_size(bluetooth_keyboard_row, LV_PCT(100), 44);
+  lv_obj_align(bluetooth_keyboard_row, LV_ALIGN_TOP_MID, 0, 40);
+  lv_obj_set_style_bg_opa(bluetooth_keyboard_row, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(bluetooth_keyboard_row, 0, 0);
+  lv_obj_set_style_pad_hor(bluetooth_keyboard_row, 12, 0);
+  lv_obj_remove_flag(bluetooth_keyboard_row, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_flex_flow(bluetooth_keyboard_row, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(bluetooth_keyboard_row, LV_FLEX_ALIGN_SPACE_BETWEEN,
+                        LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+  lv_obj_t* bluetooth_keyboard_label = lv_label_create(bluetooth_keyboard_row);
+  lv_label_set_text(bluetooth_keyboard_label, "Bluetooth Keyboard");
+  lv_obj_set_style_text_font(bluetooth_keyboard_label, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_color(bluetooth_keyboard_label, lv_color_white(), 0);
+
+  bluetooth_keyboard_switch = lv_switch_create(bluetooth_keyboard_row);
+  if (bluetooth_keyboard_enabled) {
+    lv_obj_add_state(bluetooth_keyboard_switch, LV_STATE_CHECKED);
+  }
+  lv_obj_add_event_cb(bluetooth_keyboard_switch, onBluetoothKeyboardSwitchChanged,
+                      LV_EVENT_VALUE_CHANGED, nullptr);
+
+  bluetooth_keyboard_status_label = lv_label_create(screen_bluetooth_keyboard);
+  lv_label_set_text(bluetooth_keyboard_status_label, "Connected");
+  lv_obj_set_style_text_font(bluetooth_keyboard_status_label, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(bluetooth_keyboard_status_label, kConnectedColor, 0);
+  lv_obj_align(bluetooth_keyboard_status_label, LV_ALIGN_TOP_LEFT, 12, 88);
+  lv_obj_add_flag(bluetooth_keyboard_status_label, LV_OBJ_FLAG_HIDDEN);
+
+  search_keyboard_action_container = lv_obj_create(screen_bluetooth_keyboard);
+  lv_obj_set_size(search_keyboard_action_container, 296, kKeyboardRowHeight);
+  lv_obj_align(search_keyboard_action_container, LV_ALIGN_TOP_MID, 0,
+               kKeyboardBaseActionButtonY + kKeyboardRowHeight + kKeyboardSectionGap);
+  lv_obj_set_style_bg_opa(search_keyboard_action_container, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(search_keyboard_action_container, 0, 0);
+  lv_obj_set_style_pad_all(search_keyboard_action_container, 0, 0);
+  lv_obj_remove_flag(search_keyboard_action_container, LV_OBJ_FLAG_SCROLLABLE);
+  createActionButton(search_keyboard_action_container, "Search for keyboard",
+                     onSearchKeyboardClicked);
+
+  see_paired_devices_action_container = lv_obj_create(screen_bluetooth_keyboard);
+  lv_obj_set_size(see_paired_devices_action_container, 296, kKeyboardRowHeight);
+  lv_obj_align(see_paired_devices_action_container, LV_ALIGN_TOP_MID, 0,
+               kKeyboardBaseActionButtonY);
+  lv_obj_set_style_bg_opa(see_paired_devices_action_container, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(see_paired_devices_action_container, 0, 0);
+  lv_obj_set_style_pad_all(see_paired_devices_action_container, 0, 0);
+  lv_obj_remove_flag(see_paired_devices_action_container, LV_OBJ_FLAG_SCROLLABLE);
+  createActionButton(see_paired_devices_action_container, "See paired devices",
+                     onSeePairedDevicesClicked);
+
+  refreshBluetoothKeyboardStatus();
+
+  screen_bluetooth_keyboard_search = lv_obj_create(nullptr);
+  styleScreen(screen_bluetooth_keyboard_search);
+  createHeader(screen_bluetooth_keyboard_search, "Search for keyboard",
+               Screen::kBluetoothKeyboard);
+
+  search_keyboard_status_label = lv_label_create(screen_bluetooth_keyboard_search);
+  lv_label_set_text(search_keyboard_status_label, "Searching");
+  lv_obj_set_style_text_font(search_keyboard_status_label, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(search_keyboard_status_label, kAccentColor, 0);
+  lv_obj_align(search_keyboard_status_label, LV_ALIGN_TOP_LEFT, 12, kHeaderHeight);
+
+  search_keyboard_connected_message_label =
+      lv_label_create(screen_bluetooth_keyboard_search);
+  lv_label_set_text(
+      search_keyboard_connected_message_label,
+      "To connect to a new keyboard, forget the device you are currently "
+      "connected to, or turn it off");
+  lv_obj_set_style_text_font(search_keyboard_connected_message_label,
+                             &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(search_keyboard_connected_message_label,
+                              lv_color_white(), 0);
+  lv_obj_set_width(search_keyboard_connected_message_label, 296);
+  lv_label_set_long_mode(search_keyboard_connected_message_label,
+                         LV_LABEL_LONG_WRAP);
+  lv_obj_align(search_keyboard_connected_message_label, LV_ALIGN_TOP_LEFT, 12,
+               kHeaderHeight + 20);
+  lv_obj_add_flag(search_keyboard_connected_message_label, LV_OBJ_FLAG_HIDDEN);
+
+  search_keyboard_devices_list = createScrollableList(
+      screen_bluetooth_keyboard_search, kSearchKeyboardListY,
+      kDisplayHeight - kSearchKeyboardListY);
+  for (size_t i = 0; i < kMaxBluetoothKeyboardSlots; ++i) {
+    SearchKeyboardDeviceUi& device_ui = search_keyboard_device_ui[i];
+    char placeholder[16];
+    snprintf(placeholder, sizeof(placeholder), "Device %u", static_cast<unsigned>(i + 1));
+    device_ui.button = createSearchResultButton(
+        search_keyboard_devices_list, placeholder, onDiscoverableKeyboardDeviceClicked,
+        &device_ui.label, &device_ui.spinner);
+    lv_obj_set_user_data(device_ui.button,
+                         reinterpret_cast<void*>(static_cast<intptr_t>(i)));
+    lv_obj_add_flag(device_ui.button, LV_OBJ_FLAG_HIDDEN);
+  }
+  refreshSearchKeyboardStatus();
+
+  screen_bluetooth_keyboard_paired_devices = lv_obj_create(nullptr);
+  styleScreen(screen_bluetooth_keyboard_paired_devices);
+  createHeader(screen_bluetooth_keyboard_paired_devices, "Paired devices",
+               Screen::kBluetoothKeyboard);
+
+  paired_devices_list = createScrollableList(
+      screen_bluetooth_keyboard_paired_devices, kHeaderHeight,
+      kDisplayHeight - kHeaderHeight);
+  for (size_t i = 0; i < kMaxBluetoothKeyboardSlots; ++i) {
+    lv_obj_t* connected_tick = nullptr;
+    PairedKeyboardDeviceUi& device_ui = paired_keyboard_device_ui[i];
+    device_ui.button = createMenuListButton(
+        paired_devices_list, "Paired device", onPairedKeyboardDeviceClicked, false,
+        &connected_tick);
+    device_ui.connected_tick = connected_tick;
+    lv_obj_set_user_data(device_ui.button,
+                         reinterpret_cast<void*>(static_cast<intptr_t>(i)));
+    lv_obj_add_flag(device_ui.button, LV_OBJ_FLAG_HIDDEN);
+  }
+  refreshPairedKeyboardDeviceList();
+
+  screen_bluetooth_keyboard_device = lv_obj_create(nullptr);
+  styleScreen(screen_bluetooth_keyboard_device);
+  createHeader(screen_bluetooth_keyboard_device, "Keyboard",
+               Screen::kBluetoothKeyboardPairedDevices,
+               &bluetooth_keyboard_device_title);
+
+  lv_obj_t* forget_device_container =
+      lv_obj_create(screen_bluetooth_keyboard_device);
+  lv_obj_set_size(forget_device_container, 296, kKeyboardRowHeight);
+  lv_obj_align(forget_device_container, LV_ALIGN_TOP_MID, 0, kHeaderHeight);
+  lv_obj_set_style_bg_opa(forget_device_container, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(forget_device_container, 0, 0);
+  lv_obj_set_style_pad_all(forget_device_container, 0, 0);
+  lv_obj_remove_flag(forget_device_container, LV_OBJ_FLAG_SCROLLABLE);
+  createActionButton(forget_device_container, "Forget device", onForgetDeviceClicked);
+
+  lv_obj_t* forget_device_message = lv_label_create(screen_bluetooth_keyboard_device);
+  lv_label_set_text(
+      forget_device_message,
+      "You can forget this device to prevent automatic connection. You can "
+      "repair to the device again later.");
+  lv_obj_set_style_text_font(forget_device_message, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(forget_device_message, lv_color_white(), 0);
+  lv_obj_set_width(forget_device_message, 296);
+  lv_label_set_long_mode(forget_device_message, LV_LABEL_LONG_WRAP);
+  lv_obj_align(forget_device_message, LV_ALIGN_TOP_LEFT, 12, 92);
 
 #ifdef ECHOLOCATION_DEBUG
   screen_debug = lv_obj_create(nullptr);
@@ -860,6 +1554,20 @@ void uiSetBluetoothOutput(bool enabled) {
   refreshBluetoothOutputStatus();
 }
 
+void uiSetBluetoothKeyboard(bool enabled) {
+  bluetooth_keyboard_enabled = enabled;
+  if (bluetooth_keyboard_switch != nullptr) {
+    if (enabled) {
+      lv_obj_add_state(bluetooth_keyboard_switch, LV_STATE_CHECKED);
+    } else {
+      lv_obj_remove_state(bluetooth_keyboard_switch, LV_STATE_CHECKED);
+    }
+  }
+  bleKeyboardInputSetEnabled(enabled);
+  displayed_bluetooth_keyboard_state = BluetoothKeyboardDisplayState::kHidden;
+  refreshBluetoothKeyboardStatus();
+}
+
 void uiInit() {
   buildLoadingScreen();
   showScreen(Screen::kLoading);
@@ -938,5 +1646,35 @@ void uiSetHoldDurationMs(uint32_t ms) {
 void uiRefreshConnectionFlow() { refreshConnectionFlowIndicator(); }
 
 void uiRefreshBluetoothOutputStatus() { refreshBluetoothOutputStatus(); }
+
+void uiRefreshBluetoothKeyboardStatus() {
+  const bool was_connect_pending = search_connect_pending;
+  const bool connected = bleKeyboardInputIsConnected();
+  const bool connecting = bleKeyboardInputIsConnecting();
+
+  if (current_screen == Screen::kBluetoothKeyboardSearch) {
+    refreshSearchKeyboardDeviceList();
+    refreshSearchKeyboardStatus();
+  }
+
+  if (current_screen == Screen::kBluetoothKeyboardPairedDevices ||
+      current_screen == Screen::kBluetoothKeyboardDevice) {
+    refreshPairedKeyboardDeviceList();
+  }
+
+  displayed_bluetooth_keyboard_state = BluetoothKeyboardDisplayState::kHidden;
+  refreshBluetoothKeyboardStatus();
+
+  if (was_connect_pending && connected && !connecting) {
+    resetSearchKeyboardDeviceButtons();
+    pauseSearchKeyboardStatus();
+    bleKeyboardInputStopScan();
+    if (current_screen == Screen::kBluetoothKeyboardSearch) {
+      showScreen(Screen::kBluetoothKeyboard);
+    }
+  } else if (was_connect_pending && !connected && !connecting) {
+    resetSearchKeyboardDeviceButtons();
+  }
+}
 
 void uiRefreshSpeakerOutput() { refreshSpeakerOutputIndicator(); }

@@ -1,5 +1,8 @@
 #include "ble_computer_output.h"
 
+#include "ble_radio_policy.h"
+#include "ble_stack.h"
+
 #include <HIDTypes.h>
 #include <NimBLEDevice.h>
 #include <NimBLEHIDDevice.h>
@@ -63,6 +66,7 @@ NimBLECharacteristic* ble_input_report = nullptr;
 bool stack_ready = false;
 bool output_enabled = false;
 bool host_connected = false;
+bool advertising_suspended = false;
 
 void sendKeyboardReport(uint8_t mod, uint8_t key) {
   if (ble_input_report == nullptr) {
@@ -118,7 +122,13 @@ void stopAdvertising() {
 }
 
 void startAdvertising() {
-  if (!stack_ready || !output_enabled || host_connected) {
+  if (!stack_ready || !output_enabled || host_connected ||
+      bleRadioPolicyIsScanActive()) {
+    return;
+  }
+
+  if (NimBLEDevice::getAdvertising()->isAdvertising()) {
+    advertising_suspended = false;
     return;
   }
 
@@ -128,6 +138,7 @@ void startAdvertising() {
   advertising->addServiceUUID(ble_hid->getHidService()->getUUID());
   advertising->setName(kDeviceName);
   advertising->start();
+  advertising_suspended = false;
   Serial.println("[ble-out] advertising");
 }
 
@@ -150,9 +161,9 @@ void bleComputerOutputBegin() {
     return;
   }
 
-  NimBLEDevice::init(kDeviceName);
-  NimBLEDevice::setSecurityAuth(true, true, true);
-  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
+  if (!bleStackEnsureInit(kDeviceName)) {
+    return;
+  }
 
   ble_server = NimBLEDevice::createServer();
   ble_server->setCallbacks(&server_callbacks);
@@ -193,6 +204,14 @@ void bleComputerOutputSetEnabled(bool enabled) {
 
 void bleComputerOutputTick() {
   if (!stack_ready || !output_enabled || host_connected) {
+    return;
+  }
+
+  if (bleRadioPolicyIsScanActive()) {
+    if (NimBLEDevice::getAdvertising()->isAdvertising()) {
+      stopAdvertising();
+      advertising_suspended = true;
+    }
     return;
   }
 

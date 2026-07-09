@@ -2,6 +2,7 @@
 #include <M5Unified.h>
 
 #include "device_settings_store.h"
+#include "ble_keyboard_input.h"
 #include "computer_output.h"
 #include "key_audio.h"
 #include "lvgl_port.h"
@@ -61,6 +62,10 @@ void setup() {
   pumpLoadingUi();
   computerOutputBegin();
 
+  uiSetLoadingStatus("Starting Bluetooth keyboard...");
+  pumpLoadingUi();
+  bleKeyboardInputBegin();
+
   uiSetLoadingStatus("Loading settings...");
   pumpLoadingUi();
   deviceSettingsLoad();
@@ -87,8 +92,10 @@ void loop() {
   updateBatteryStatus();
   lvglPortTick();
   computerOutputTick();
+  bleKeyboardInputTick();
   uiRefreshConnectionFlow();
   uiRefreshBluetoothOutputStatus();
+  uiRefreshBluetoothKeyboardStatus();
   if (speakerDetectPoll()) {
     speakerRouteApply();
     uiRefreshSpeakerOutput();
