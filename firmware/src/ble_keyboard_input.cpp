@@ -29,8 +29,8 @@ constexpr size_t kMaxScanResults = 8;
 constexpr uint16_t kAppearanceGenericHid = 0x03C0;
 constexpr uint16_t kAppearanceKeyboard = 0x03C1;
 constexpr uint32_t kScanDurationSec = 0;
-constexpr uint32_t kConnectTimeoutMs = 15000;
-constexpr uint32_t kReconnectIntervalMs = 5000;
+constexpr uint32_t kConnectTimeoutMs = 5000;
+constexpr uint32_t kReconnectIntervalMs = 10000;
 
 struct ScanEntry {
   char name[32];
@@ -63,6 +63,28 @@ char bonded_addresses[kMaxBondedKeyboards][18];
 char bonded_names[kMaxBondedKeyboards][32];
 uint8_t bonded_address_types[kMaxBondedKeyboards];
 size_t bonded_count = 0;
+bool reconnect_scan_active = false;
+
+struct PendingConnect {
+  char address[18];
+  char name[32];
+  uint8_t address_type;
+  uint8_t attempt;
+  bool connect_in_flight;
+};
+
+PendingConnect pending_connect = {};
+bool pending_advertised_connect = false;
+char pending_advertised_address[18] = {};
+char pending_advertised_name[32] = {};
+uint8_t pending_advertised_address_type = BLE_ADDR_PUBLIC;
+
+bool ensureClient();
+bool finishConnection(const char* name, const char* address, uint8_t address_type);
+bool startScanInternal();
+void stopScanInternal();
+void beginConnectAttempt(const char* address, const char* name,
+                         uint8_t address_type);
 
 void formatAddress(const NimBLEAddress& addr, char* out, size_t out_len) {
   snprintf(out, out_len, "%s", addr.toString().c_str());
@@ -145,6 +167,186 @@ uint8_t lookupAddressType(const char* address) {
   }
 
   return BLE_ADDR_PUBLIC;
+}
+
+bool namesMatch(const char* left, const char* right) {
+  if (left == nullptr || right == nullptr) {
+    return false;
+  }
+  while (*left != '\0' && *right != '\0') {
+    char a = *left;
+    char b = *right;
+    if (a >= 'A' && a <= 'Z') {
+      a = static_cast<char>(a - 'A' + 'a');
+    }
+    if (b >= 'A' && b <= 'Z') {
+      b = static_cast<char>(b - 'A' + 'a');
+    }
+    if (a != b) {
+      return false;
+    }
+    ++left;
+    ++right;
+  }
+  return *left == '\0' && *right == '\0';
+}
+
+bool matchesBondedKeyboard(const NimBLEAdvertisedDevice* device) {
+  if (device == nullptr || !isDiscoverableKeyboard(device)) {
+    return false;
+  }
+
+  char address[18];
+  formatAddress(device->getAddress(), address, sizeof(address));
+  if (findBondIndex(address) >= 0) {
+    return true;
+  }
+
+  const char* name = device->getName().c_str();
+  for (size_t i = 0; i < bonded_count; ++i) {
+    if (namesMatch(name, bonded_names[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void resetPendingConnect() { memset(&pending_connect, 0, sizeof(pending_connect)); }
+
+void cancelConnectAttempt() {
+  if (ble_client != nullptr && ble_client->isConnected()) {
+    ble_client->disconnect();
+  }
+  connecting = false;
+  resetPendingConnect();
+  connected_name[0] = '\0';
+  connected_address[0] = '\0';
+}
+
+void startReconnectScan() {
+  if (!module_ready || !input_enabled || keyboard_connected || connecting ||
+      scan_requested) {
+    return;
+  }
+
+  reconnect_scan_active = true;
+  if (!startScanInternal()) {
+    reconnect_scan_active = false;
+  } else {
+    Serial.println("[ble-kb] scanning for bonded keyboard");
+  }
+}
+
+void queueConnectFromAdvertised(const NimBLEAdvertisedDevice* device) {
+  if (device == nullptr) {
+    return;
+  }
+
+  formatAddress(device->getAddress(), pending_advertised_address,
+                sizeof(pending_advertised_address));
+  copyName(device->getName().c_str(), pending_advertised_name,
+           sizeof(pending_advertised_name));
+  pending_advertised_address_type = device->getAddress().getType();
+  pending_advertised_connect = true;
+  reconnect_scan_active = false;
+  stopScanInternal();
+}
+
+void processPendingAdvertisedConnect() {
+  if (!pending_advertised_connect || connecting || keyboard_connected) {
+    return;
+  }
+
+  pending_advertised_connect = false;
+  Serial.printf("[ble-kb] reconnect found: %s (%s)\n", pending_advertised_name,
+                pending_advertised_address);
+  beginConnectAttempt(pending_advertised_address, pending_advertised_name,
+                      pending_advertised_address_type);
+}
+
+void beginConnectAttempt(const char* address, const char* name,
+                         uint8_t address_type) {
+  stopScanInternal();
+  reconnect_scan_active = false;
+
+  if (!ensureClient()) {
+    return;
+  }
+
+  if (ble_client->isConnected()) {
+    ble_client->disconnect();
+    delay(50);
+  }
+
+  resetPendingConnect();
+  strncpy(pending_connect.address, address, sizeof(pending_connect.address) - 1);
+  pending_connect.address[sizeof(pending_connect.address) - 1] = '\0';
+  copyName(name, pending_connect.name, sizeof(pending_connect.name));
+  pending_connect.address_type = address_type;
+  pending_connect.attempt = 0;
+  pending_connect.connect_in_flight = false;
+
+  copyName(name, connected_name, sizeof(connected_name));
+  strncpy(connected_address, address, sizeof(connected_address) - 1);
+  connected_address[sizeof(connected_address) - 1] = '\0';
+  connecting = true;
+  connect_started_ms = millis();
+}
+
+void processConnectTick() {
+  if (!connecting || ble_client == nullptr || pending_connect.address[0] == '\0') {
+    return;
+  }
+
+  if (ble_client->isConnected()) {
+    if (!keyboard_connected &&
+        !finishConnection(connected_name, connected_address,
+                          pending_connect.address_type)) {
+      cancelConnectAttempt();
+      startReconnectScan();
+    }
+    resetPendingConnect();
+    return;
+  }
+
+  if (pending_connect.connect_in_flight) {
+    return;
+  }
+
+  pending_connect.connect_in_flight = true;
+  connect_started_ms = millis();
+  NimBLEAddress peer =
+      addressFromStored(pending_connect.address, pending_connect.address_type);
+  Serial.printf("[ble-kb] connecting to %s (%s, type=%u)\n",
+                pending_connect.name, pending_connect.address,
+                static_cast<unsigned>(pending_connect.address_type));
+
+  const bool connected = ble_client->connect(peer);
+  pending_connect.connect_in_flight = false;
+
+  if (connected && ble_client->isConnected()) {
+    if (!finishConnection(pending_connect.name, pending_connect.address,
+                          pending_connect.address_type)) {
+      cancelConnectAttempt();
+      startReconnectScan();
+    }
+    resetPendingConnect();
+    return;
+  }
+
+  if (pending_connect.attempt == 0) {
+    pending_connect.attempt = 1;
+    pending_connect.address_type = pending_connect.address_type == BLE_ADDR_PUBLIC
+                                       ? BLE_ADDR_RANDOM
+                                       : BLE_ADDR_PUBLIC;
+    Serial.printf("[ble-kb] retrying connect with address type %u\n",
+                  static_cast<unsigned>(pending_connect.address_type));
+    return;
+  }
+
+  Serial.println("[ble-kb] connect failed");
+  cancelConnectAttempt();
+  startReconnectScan();
 }
 
 void loadBondedKeyboards() {
@@ -326,7 +528,16 @@ bool addScanResultFromDevice(const NimBLEAdvertisedDevice* device) {
 
 class KeyboardScanCallbacks : public NimBLEScanCallbacks {
   void onResult(const NimBLEAdvertisedDevice* advertised_device) override {
-    if (!scan_requested || advertised_device == nullptr) {
+    if (advertised_device == nullptr) {
+      return;
+    }
+
+    if (reconnect_scan_active && matchesBondedKeyboard(advertised_device)) {
+      queueConnectFromAdvertised(advertised_device);
+      return;
+    }
+
+    if (!scan_requested) {
       return;
     }
 
@@ -478,11 +689,15 @@ void disconnectClient() {
     ble_client->disconnect();
   }
   clearConnectedState();
-  connecting = false;
+  cancelConnectAttempt();
 }
 
 bool startScanInternal() {
   if (!module_ready || !input_enabled || keyboard_connected || connecting) {
+    return false;
+  }
+
+  if (!scan_requested && !reconnect_scan_active) {
     return false;
   }
 
@@ -497,7 +712,9 @@ bool startScanInternal() {
     return true;
   }
 
-  scan_result_count = 0;
+  if (scan_requested) {
+    scan_result_count = 0;
+  }
   scan->setScanCallbacks(&scan_callbacks, false);
   scan->setActiveScan(true);
   scan->setInterval(45);
@@ -532,49 +749,16 @@ bool connectToAddress(const char* address, const char* name,
     return false;
   }
 
-  stopScanInternal();
-
-  if (!ensureClient()) {
-    return false;
-  }
-
-  if (ble_client->isConnected()) {
-    ble_client->disconnect();
-    delay(50);
-  }
-
-  NimBLEAddress peer = addressFromStored(address, address_type);
-  connecting = true;
-  connect_started_ms = millis();
-  copyName(name, connected_name, sizeof(connected_name));
-  strncpy(connected_address, address, sizeof(connected_address) - 1);
-  connected_address[sizeof(connected_address) - 1] = '\0';
-
-  Serial.printf("[ble-kb] connecting to %s (%s, type=%u)\n", connected_name,
-                address, static_cast<unsigned>(address_type));
-  if (!ble_client->connect(peer)) {
-    const uint8_t alternate_type = address_type == BLE_ADDR_PUBLIC
-                                       ? BLE_ADDR_RANDOM
-                                       : BLE_ADDR_PUBLIC;
-    NimBLEAddress alternate_peer = addressFromStored(address, alternate_type);
-    Serial.printf("[ble-kb] retrying connect with address type %u\n",
-                  static_cast<unsigned>(alternate_type));
-    if (!ble_client->connect(alternate_peer)) {
-      Serial.println("[ble-kb] connect failed");
-      connecting = false;
-      connected_name[0] = '\0';
-      connected_address[0] = '\0';
-      return false;
-    }
-    address_type = alternate_type;
-  }
-
-  return finishConnection(name, address, address_type);
+  beginConnectAttempt(address, name, address_type);
+  return connecting;
 }
 
 void attemptAutoReconnect() {
-  if (!input_enabled || keyboard_connected || connecting || scanning ||
-      scan_requested) {
+  if (!input_enabled || keyboard_connected || connecting || scan_requested) {
+    return;
+  }
+
+  if (scanning || reconnect_scan_active) {
     return;
   }
 
@@ -584,10 +768,15 @@ void attemptAutoReconnect() {
   }
   last_reconnect_attempt_ms = now_ms;
 
+  if (bonded_count == 0) {
+    return;
+  }
+
   char last_address[18];
   loadLastAddress(last_address, sizeof(last_address));
   if (last_address[0] == '\0') {
-    return;
+    strncpy(last_address, bonded_addresses[0], sizeof(last_address) - 1);
+    last_address[sizeof(last_address) - 1] = '\0';
   }
 
   const int bond_index = findBondIndex(last_address);
@@ -595,7 +784,7 @@ void attemptAutoReconnect() {
   const uint8_t address_type =
       bond_index >= 0 ? bonded_address_types[bond_index]
                       : lookupAddressType(last_address);
-  connectToAddress(last_address, name, address_type);
+  beginConnectAttempt(last_address, name, address_type);
 }
 
 }  // namespace
@@ -622,14 +811,13 @@ void bleKeyboardInputSetEnabled(bool enabled) {
 
   if (!enabled) {
     bleKeyboardInputStopScan();
+    reconnect_scan_active = false;
+    cancelConnectAttempt();
     disconnectClient();
     return;
   }
 
-  last_reconnect_attempt_ms = 0;
-  if (!keyboard_connected && !connecting) {
-    attemptAutoReconnect();
-  }
+  last_reconnect_attempt_ms = millis();
 }
 
 void bleKeyboardInputTick() {
@@ -637,27 +825,22 @@ void bleKeyboardInputTick() {
     return;
   }
 
-  if (connecting && ble_client != nullptr) {
-    if (ble_client->isConnected()) {
-      if (!keyboard_connected) {
-        finishConnection(connected_name, connected_address,
-                         lookupAddressType(connected_address));
-      }
-    } else if (millis() - connect_started_ms > kConnectTimeoutMs) {
-      Serial.println("[ble-kb] connect timeout");
-      connecting = false;
-      connected_name[0] = '\0';
-      connected_address[0] = '\0';
-    }
+  if (connecting) {
+    processConnectTick();
   }
+
+  processPendingAdvertisedConnect();
 
   if (scan_requested && !keyboard_connected && !connecting) {
     startScanInternal();
-  } else if (!scan_requested && scanning) {
+  } else if (reconnect_scan_active && !keyboard_connected && !connecting) {
+    startScanInternal();
+  } else if (!scan_requested && !reconnect_scan_active && scanning) {
     stopScanInternal();
   }
 
-  if (!keyboard_connected && !connecting && !scanning && !scan_requested) {
+  if (!keyboard_connected && !connecting && !scanning && !scan_requested &&
+      !reconnect_scan_active) {
     attemptAutoReconnect();
   }
 }
@@ -672,6 +855,7 @@ void bleKeyboardInputStartScan() {
 
 void bleKeyboardInputStopScan() {
   scan_requested = false;
+  reconnect_scan_active = false;
   stopScanInternal();
   scan_result_count = 0;
 }
