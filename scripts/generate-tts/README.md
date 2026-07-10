@@ -20,11 +20,21 @@
 4. Pass the model path to `--voice` or map it in `voices.json`.
 
 ## Usage
+
+First build the manifest (250 speech tokens covering US/UK characters, modifiers,
+special keys, and physical-key fallbacks):
+
+```
+npm run build-manifest
+```
+
+Then generate WAV files with Piper:
+
 ```
 npm run generate -- --manifest ../../assets/audio-manifest.json --out ../../sd-card/audio --voice ~/models/en_GB-alba-medium.onnx --force
 ```
 
-The script writes WAV files to the output directory for every entry in the manifest.
+Copy the `audio` folder to the root of your FAT32 microSD card (`/audio/*.wav` on the device).
 
 ### Regenerate Existing Files
 Pass `--force` to overwrite existing WAVs:

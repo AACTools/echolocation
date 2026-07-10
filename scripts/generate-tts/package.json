@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "npm run build-manifest && npm run generate",
+    "build-manifest": "node build-manifest.js",
     "generate": "node generate.js"
   }
 }

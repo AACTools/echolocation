@@ -47,9 +47,9 @@ pio device monitor -b 115200
 
 ## microSD card
 
-Key speech is read from WAV files on a FAT32 microSD card at `/audio/keys/*.wav`.
+Key speech is read from WAV files on a FAT32 microSD card at `/audio/*.wav`.
 
-Generate the files with Piper TTS — see [scripts/generate-tts/README.md](../scripts/generate-tts/README.md). Copy the `audio` folder to the root of the card, insert it into the CoreS3 SD slot, and reboot.
+Generate the files with Piper TTS — see [scripts/generate-tts/README.md](../scripts/generate-tts/README.md). Run `npm run build-manifest` first, then `npm run generate`. Copy the `audio` folder to the root of the card, insert it into the CoreS3 SD slot, and reboot.
 
 ## Flash pre-built binaries
 

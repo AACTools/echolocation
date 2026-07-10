@@ -2,9 +2,10 @@
 
 #include "computer_output.h"
 #include "key_audio.h"
+#include "keyboard_layout.h"
 #include "ui.h"
-#include <Arduino.h>
 
+#include <Arduino.h>
 #include <string.h>
 
 namespace {
@@ -17,106 +18,8 @@ bool box_shown = false;
 bool key_sent_to_computer = false;
 uint8_t current_report[8] = {};
 uint8_t report_snapshot[8] = {};
+uint8_t prev_modifiers = 0;
 uint32_t last_report_change_ms = 0;
-
-const char* hidKeyName(uint8_t key) {
-  switch (key) {
-    case 0x28:
-      return "Enter";
-    case 0x29:
-      return "Esc";
-    case 0x2A:
-      return "Backspace";
-    case 0x2B:
-      return "Tab";
-    case 0x2C:
-      return "Space";
-    case 0x39:
-      return "Caps";
-    case 0x3A:
-      return "F1";
-    case 0x3B:
-      return "F2";
-    case 0x3C:
-      return "F3";
-    case 0x3D:
-      return "F4";
-    case 0x3E:
-      return "F5";
-    case 0x3F:
-      return "F6";
-    case 0x40:
-      return "F7";
-    case 0x41:
-      return "F8";
-    case 0x42:
-      return "F9";
-    case 0x43:
-      return "F10";
-    case 0x44:
-      return "F11";
-    case 0x45:
-      return "F12";
-    case 0x4F:
-      return "Right";
-    case 0x50:
-      return "Left";
-    case 0x51:
-      return "Down";
-    case 0x52:
-      return "Up";
-    case 0x53:
-      return "Num";
-    default:
-      return nullptr;
-  }
-}
-
-uint8_t hidKeyToAscii(uint8_t mod, uint8_t key) {
-  const bool shift = (mod & 0x22) != 0;
-
-  if (key >= 0x04 && key <= 0x1D) {
-    const char base = static_cast<char>('a' + (key - 0x04));
-    return shift ? static_cast<uint8_t>(base - 32) : static_cast<uint8_t>(base);
-  }
-  if (key >= 0x1E && key <= 0x27) {
-    const char digits[] = "1234567890";
-    if (!shift) {
-      return static_cast<uint8_t>(digits[key - 0x1E]);
-    }
-    const char shifted[] = "!@#$%^&*()";
-    return static_cast<uint8_t>(shifted[key - 0x1E]);
-  }
-
-  switch (key) {
-    case 0x2C:
-      return ' ';
-    case 0x2D:
-      return shift ? '_' : '-';
-    case 0x2E:
-      return shift ? '+' : '=';
-    case 0x2F:
-      return shift ? '{' : '[';
-    case 0x30:
-      return shift ? '}' : ']';
-    case 0x31:
-      return shift ? '|' : '\\';
-    case 0x33:
-      return shift ? '"' : '\'';
-    case 0x34:
-      return shift ? ':' : ';';
-    case 0x35:
-      return shift ? '?' : '/';
-    case 0x36:
-      return shift ? '~' : '`';
-  case 0x37:
-      return shift ? '>' : ',';
-    case 0x38:
-      return shift ? '<' : '.';
-    default:
-      return 0;
-  }
-}
 
 void normalizeBootReport(const uint8_t* report, size_t len, uint8_t normalized[8]) {
   memset(normalized, 0, 8);
@@ -169,32 +72,43 @@ void noteReportChanged(const uint8_t report[8]) {
   uiSetKeyBoxOutline(false);
 }
 
+void announceLabel(const KeyLabel& label) {
+  keyAudioPlayForToken(label.speech_token);
+  uiSetPressedKey(label.display);
+}
+
+void keyboardInputOnModifierChange(uint8_t old_mod, uint8_t new_mod) {
+  static const uint8_t kModifierBits[] = {0x01, 0x02, 0x04, 0x08,
+                                          0x10, 0x20, 0x40, 0x80};
+  for (size_t i = 0; i < sizeof(kModifierBits); ++i) {
+    const uint8_t bit = kModifierBits[i];
+    if ((old_mod & bit) == 0 && (new_mod & bit) != 0) {
+      KeyLabel label;
+      if (keyboardLayoutResolveModifier(bit, &label)) {
+        announceLabel(label);
+      }
+    }
+  }
+}
+
 }  // namespace
 
 bool keyboardInputKeyToLabel(uint8_t mod, uint8_t key, char* out, size_t out_len) {
-  if (key == 0 || out_len == 0) {
+  KeyLabel label;
+  if (!keyboardLayoutResolveKey(mod, key, &label)) {
     if (out_len > 0) {
       out[0] = '\0';
     }
     return false;
   }
 
-  const char* name = hidKeyName(key);
-  if (name != nullptr) {
-    strncpy(out, name, out_len - 1);
-    out[out_len - 1] = '\0';
+  if (out == nullptr || out_len == 0) {
     return true;
   }
 
-  const uint8_t ascii = hidKeyToAscii(mod, key);
-  if (ascii >= 0x20 && ascii <= 0x7E) {
-    out[0] = static_cast<char>(ascii);
-    out[1] = '\0';
-    return true;
-  }
-
-  out[0] = '\0';
-  return false;
+  strncpy(out, label.display, out_len - 1);
+  out[out_len - 1] = '\0';
+  return true;
 }
 
 void keyboardInputOnKeyDown(uint8_t mod, uint8_t key) {
@@ -202,8 +116,8 @@ void keyboardInputOnKeyDown(uint8_t mod, uint8_t key) {
     return;
   }
 
-  char label[16];
-  if (!keyboardInputKeyToLabel(mod, key, label, sizeof(label))) {
+  KeyLabel label;
+  if (!keyboardLayoutResolveKey(mod, key, &label)) {
     return;
   }
 
@@ -213,7 +127,7 @@ void keyboardInputOnKeyDown(uint8_t mod, uint8_t key) {
     displayed_mod = mod;
     box_shown = false;
     uiSetKeyBoxOutline(false);
-    uiSetPressedKey(label);
+    uiSetPressedKey(label.display);
   }
 
   if (held_key != key || held_mod != mod) {
@@ -225,7 +139,7 @@ void keyboardInputOnKeyDown(uint8_t mod, uint8_t key) {
     }
   }
 
-  keyAudioPlayForLabel(label);
+  keyAudioPlayForToken(label.speech_token);
 }
 
 void keyboardInputOnKeyUp(uint8_t mod, uint8_t key) {
@@ -244,6 +158,12 @@ void keyboardInputProcessBootReport(uint8_t* prev_state, const uint8_t* report,
     return;
   }
 
+  const uint8_t modifiers = normalized[0];
+  if (modifiers != prev_modifiers) {
+    keyboardInputOnModifierChange(prev_modifiers, modifiers);
+    prev_modifiers = modifiers;
+  }
+
   for (uint8_t i = 2; i < 8; i++) {
     bool down = false;
     bool up = false;
@@ -257,7 +177,7 @@ void keyboardInputProcessBootReport(uint8_t* prev_state, const uint8_t* report,
       }
     }
     if (!down && normalized[i] != 0) {
-      keyboardInputOnKeyDown(normalized[0], normalized[i]);
+      keyboardInputOnKeyDown(modifiers, normalized[i]);
     }
     if (!up && prev_state[i] != 0) {
       keyboardInputOnKeyUp(prev_state[0], prev_state[i]);
@@ -296,9 +216,6 @@ void keyboardInputTick() {
     return;
   }
 
-  // Mark sent before the blocking output call. computerOutputSendKey uses
-  // delay() for BLE HID timing; the main loop keeps running during that delay
-  // and would otherwise re-enter here for phantom rollover keys.
   key_sent_to_computer = true;
   computerOutputSendKey(held_mod, held_key);
 }

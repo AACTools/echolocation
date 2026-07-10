@@ -1,45 +1,1254 @@
 {
   "entries": [
-    { "token": "a", "text": "A", "filename": "a.wav" },
-    { "token": "b", "text": "B", "filename": "b.wav" },
-    { "token": "c", "text": "C", "filename": "c.wav" },
-    { "token": "d", "text": "D", "filename": "d.wav" },
-    { "token": "e", "text": "E", "filename": "e.wav" },
-    { "token": "f", "text": "F", "filename": "f.wav" },
-    { "token": "g", "text": "G", "filename": "g.wav" },
-    { "token": "h", "text": "H", "filename": "h.wav" },
-    { "token": "i", "text": "I", "filename": "i.wav" },
-    { "token": "j", "text": "J", "filename": "j.wav" },
-    { "token": "k", "text": "K", "filename": "k.wav" },
-    { "token": "l", "text": "L", "filename": "l.wav" },
-    { "token": "m", "text": "M", "filename": "m.wav" },
-    { "token": "n", "text": "N", "filename": "n.wav" },
-    { "token": "o", "text": "O", "filename": "o.wav" },
-    { "token": "p", "text": "P", "filename": "p.wav" },
-    { "token": "q", "text": "Q", "filename": "q.wav" },
-    { "token": "r", "text": "R", "filename": "r.wav" },
-    { "token": "s", "text": "S", "filename": "s.wav" },
-    { "token": "t", "text": "T", "filename": "t.wav" },
-    { "token": "u", "text": "U", "filename": "u.wav" },
-    { "token": "v", "text": "V", "filename": "v.wav" },
-    { "token": "w", "text": "W", "filename": "w.wav" },
-    { "token": "x", "text": "X", "filename": "x.wav" },
-    { "token": "y", "text": "Y", "filename": "y.wav" },
-    { "token": "z", "text": "Z", "filename": "z.wav" },
-    { "token": "enter", "text": "Enter", "filename": "enter.wav" },
-    { "token": "escape", "text": "Escape", "filename": "escape.wav" },
-    { "token": "backspace", "text": "Backspace", "filename": "backspace.wav" },
-    { "token": "tab", "text": "Tab", "filename": "tab.wav" },
-    { "token": "space", "text": "Space", "filename": "space.wav" },
-    { "token": "minus", "text": "Minus", "filename": "minus.wav" },
-    { "token": "equals", "text": "Equals", "filename": "equals.wav" },
-    { "token": "left bracket", "text": "Left bracket", "filename": "left_bracket.wav" },
-    { "token": "right bracket", "text": "Right bracket", "filename": "right_bracket.wav" },
-    { "token": "backslash", "text": "Backslash", "filename": "backslash.wav" },
-    { "token": "semicolon", "text": "Semicolon", "filename": "semicolon.wav" },
-    { "token": "quote", "text": "Quote", "filename": "quote.wav" },
-    { "token": "comma", "text": "Comma", "filename": "comma.wav" },
-    { "token": "period", "text": "Period", "filename": "period.wav" },
-    { "token": "slash", "text": "Slash", "filename": "slash.wav" }
+    {
+      "token": "a",
+      "text": "A",
+      "filename": "a.wav"
+    },
+    {
+      "token": "b",
+      "text": "B",
+      "filename": "b.wav"
+    },
+    {
+      "token": "c",
+      "text": "C",
+      "filename": "c.wav"
+    },
+    {
+      "token": "d",
+      "text": "D",
+      "filename": "d.wav"
+    },
+    {
+      "token": "e",
+      "text": "E",
+      "filename": "e.wav"
+    },
+    {
+      "token": "f",
+      "text": "F",
+      "filename": "f.wav"
+    },
+    {
+      "token": "g",
+      "text": "G",
+      "filename": "g.wav"
+    },
+    {
+      "token": "h",
+      "text": "H",
+      "filename": "h.wav"
+    },
+    {
+      "token": "i",
+      "text": "I",
+      "filename": "i.wav"
+    },
+    {
+      "token": "j",
+      "text": "J",
+      "filename": "j.wav"
+    },
+    {
+      "token": "k",
+      "text": "K",
+      "filename": "k.wav"
+    },
+    {
+      "token": "l",
+      "text": "L",
+      "filename": "l.wav"
+    },
+    {
+      "token": "m",
+      "text": "M",
+      "filename": "m.wav"
+    },
+    {
+      "token": "n",
+      "text": "N",
+      "filename": "n.wav"
+    },
+    {
+      "token": "o",
+      "text": "O",
+      "filename": "o.wav"
+    },
+    {
+      "token": "p",
+      "text": "P",
+      "filename": "p.wav"
+    },
+    {
+      "token": "q",
+      "text": "Q",
+      "filename": "q.wav"
+    },
+    {
+      "token": "r",
+      "text": "R",
+      "filename": "r.wav"
+    },
+    {
+      "token": "s",
+      "text": "S",
+      "filename": "s.wav"
+    },
+    {
+      "token": "t",
+      "text": "T",
+      "filename": "t.wav"
+    },
+    {
+      "token": "u",
+      "text": "U",
+      "filename": "u.wav"
+    },
+    {
+      "token": "v",
+      "text": "V",
+      "filename": "v.wav"
+    },
+    {
+      "token": "w",
+      "text": "W",
+      "filename": "w.wav"
+    },
+    {
+      "token": "x",
+      "text": "X",
+      "filename": "x.wav"
+    },
+    {
+      "token": "y",
+      "text": "Y",
+      "filename": "y.wav"
+    },
+    {
+      "token": "z",
+      "text": "Z",
+      "filename": "z.wav"
+    },
+    {
+      "token": "0",
+      "text": "Zero",
+      "filename": "0.wav"
+    },
+    {
+      "token": "1",
+      "text": "One",
+      "filename": "1.wav"
+    },
+    {
+      "token": "2",
+      "text": "Two",
+      "filename": "2.wav"
+    },
+    {
+      "token": "3",
+      "text": "Three",
+      "filename": "3.wav"
+    },
+    {
+      "token": "4",
+      "text": "Four",
+      "filename": "4.wav"
+    },
+    {
+      "token": "5",
+      "text": "Five",
+      "filename": "5.wav"
+    },
+    {
+      "token": "6",
+      "text": "Six",
+      "filename": "6.wav"
+    },
+    {
+      "token": "7",
+      "text": "Seven",
+      "filename": "7.wav"
+    },
+    {
+      "token": "8",
+      "text": "Eight",
+      "filename": "8.wav"
+    },
+    {
+      "token": "9",
+      "text": "Nine",
+      "filename": "9.wav"
+    },
+    {
+      "token": "exclamation",
+      "text": "Exclamation mark",
+      "filename": "exclamation.wav"
+    },
+    {
+      "token": "at",
+      "text": "At",
+      "filename": "at.wav"
+    },
+    {
+      "token": "hash",
+      "text": "Hash",
+      "filename": "hash.wav"
+    },
+    {
+      "token": "pound",
+      "text": "Pound",
+      "filename": "pound.wav"
+    },
+    {
+      "token": "dollar",
+      "text": "Dollar",
+      "filename": "dollar.wav"
+    },
+    {
+      "token": "percent",
+      "text": "Percent",
+      "filename": "percent.wav"
+    },
+    {
+      "token": "caret",
+      "text": "Caret",
+      "filename": "caret.wav"
+    },
+    {
+      "token": "ampersand",
+      "text": "Ampersand",
+      "filename": "ampersand.wav"
+    },
+    {
+      "token": "asterisk",
+      "text": "Asterisk",
+      "filename": "asterisk.wav"
+    },
+    {
+      "token": "left_paren",
+      "text": "Left parenthesis",
+      "filename": "left_paren.wav"
+    },
+    {
+      "token": "right_paren",
+      "text": "Right parenthesis",
+      "filename": "right_paren.wav"
+    },
+    {
+      "token": "minus",
+      "text": "Minus",
+      "filename": "minus.wav"
+    },
+    {
+      "token": "underscore",
+      "text": "Underscore",
+      "filename": "underscore.wav"
+    },
+    {
+      "token": "equals",
+      "text": "Equals",
+      "filename": "equals.wav"
+    },
+    {
+      "token": "plus",
+      "text": "Plus",
+      "filename": "plus.wav"
+    },
+    {
+      "token": "left_bracket",
+      "text": "Left bracket",
+      "filename": "left_bracket.wav"
+    },
+    {
+      "token": "right_bracket",
+      "text": "Right bracket",
+      "filename": "right_bracket.wav"
+    },
+    {
+      "token": "left_brace",
+      "text": "Left brace",
+      "filename": "left_brace.wav"
+    },
+    {
+      "token": "right_brace",
+      "text": "Right brace",
+      "filename": "right_brace.wav"
+    },
+    {
+      "token": "backslash",
+      "text": "Backslash",
+      "filename": "backslash.wav"
+    },
+    {
+      "token": "pipe",
+      "text": "Pipe",
+      "filename": "pipe.wav"
+    },
+    {
+      "token": "semicolon",
+      "text": "Semicolon",
+      "filename": "semicolon.wav"
+    },
+    {
+      "token": "colon",
+      "text": "Colon",
+      "filename": "colon.wav"
+    },
+    {
+      "token": "single_quote",
+      "text": "Single quote",
+      "filename": "single_quote.wav"
+    },
+    {
+      "token": "double_quote",
+      "text": "Double quote",
+      "filename": "double_quote.wav"
+    },
+    {
+      "token": "comma",
+      "text": "Comma",
+      "filename": "comma.wav"
+    },
+    {
+      "token": "less_than",
+      "text": "Less than",
+      "filename": "less_than.wav"
+    },
+    {
+      "token": "period",
+      "text": "Period",
+      "filename": "period.wav"
+    },
+    {
+      "token": "greater_than",
+      "text": "Greater than",
+      "filename": "greater_than.wav"
+    },
+    {
+      "token": "slash",
+      "text": "Slash",
+      "filename": "slash.wav"
+    },
+    {
+      "token": "question",
+      "text": "Question",
+      "filename": "question.wav"
+    },
+    {
+      "token": "backtick",
+      "text": "Backtick",
+      "filename": "backtick.wav"
+    },
+    {
+      "token": "tilde",
+      "text": "Tilde",
+      "filename": "tilde.wav"
+    },
+    {
+      "token": "not_sign",
+      "text": "Not sign",
+      "filename": "not_sign.wav"
+    },
+    {
+      "token": "enter",
+      "text": "Enter",
+      "filename": "enter.wav"
+    },
+    {
+      "token": "escape",
+      "text": "Escape",
+      "filename": "escape.wav"
+    },
+    {
+      "token": "backspace",
+      "text": "Backspace",
+      "filename": "backspace.wav"
+    },
+    {
+      "token": "tab",
+      "text": "Tab",
+      "filename": "tab.wav"
+    },
+    {
+      "token": "space",
+      "text": "Space",
+      "filename": "space.wav"
+    },
+    {
+      "token": "caps_lock",
+      "text": "Caps lock",
+      "filename": "caps_lock.wav"
+    },
+    {
+      "token": "f1",
+      "text": "F 1",
+      "filename": "f1.wav"
+    },
+    {
+      "token": "f2",
+      "text": "F 2",
+      "filename": "f2.wav"
+    },
+    {
+      "token": "f3",
+      "text": "F 3",
+      "filename": "f3.wav"
+    },
+    {
+      "token": "f4",
+      "text": "F 4",
+      "filename": "f4.wav"
+    },
+    {
+      "token": "f5",
+      "text": "F 5",
+      "filename": "f5.wav"
+    },
+    {
+      "token": "f6",
+      "text": "F 6",
+      "filename": "f6.wav"
+    },
+    {
+      "token": "f7",
+      "text": "F 7",
+      "filename": "f7.wav"
+    },
+    {
+      "token": "f8",
+      "text": "F 8",
+      "filename": "f8.wav"
+    },
+    {
+      "token": "f9",
+      "text": "F 9",
+      "filename": "f9.wav"
+    },
+    {
+      "token": "f10",
+      "text": "F 10",
+      "filename": "f10.wav"
+    },
+    {
+      "token": "f11",
+      "text": "F 11",
+      "filename": "f11.wav"
+    },
+    {
+      "token": "f12",
+      "text": "F 12",
+      "filename": "f12.wav"
+    },
+    {
+      "token": "print_screen",
+      "text": "Print screen",
+      "filename": "print_screen.wav"
+    },
+    {
+      "token": "scroll_lock",
+      "text": "Scroll lock",
+      "filename": "scroll_lock.wav"
+    },
+    {
+      "token": "pause",
+      "text": "Pause",
+      "filename": "pause.wav"
+    },
+    {
+      "token": "insert",
+      "text": "Insert",
+      "filename": "insert.wav"
+    },
+    {
+      "token": "home",
+      "text": "Home",
+      "filename": "home.wav"
+    },
+    {
+      "token": "page_up",
+      "text": "Page up",
+      "filename": "page_up.wav"
+    },
+    {
+      "token": "delete",
+      "text": "Delete",
+      "filename": "delete.wav"
+    },
+    {
+      "token": "end",
+      "text": "End",
+      "filename": "end.wav"
+    },
+    {
+      "token": "page_down",
+      "text": "Page down",
+      "filename": "page_down.wav"
+    },
+    {
+      "token": "arrow_right",
+      "text": "Right arrow",
+      "filename": "arrow_right.wav"
+    },
+    {
+      "token": "arrow_left",
+      "text": "Left arrow",
+      "filename": "arrow_left.wav"
+    },
+    {
+      "token": "arrow_down",
+      "text": "Down arrow",
+      "filename": "arrow_down.wav"
+    },
+    {
+      "token": "arrow_up",
+      "text": "Up arrow",
+      "filename": "arrow_up.wav"
+    },
+    {
+      "token": "num_lock",
+      "text": "Num lock",
+      "filename": "num_lock.wav"
+    },
+    {
+      "token": "numpad_divide",
+      "text": "Numpad divide",
+      "filename": "numpad_divide.wav"
+    },
+    {
+      "token": "numpad_multiply",
+      "text": "Numpad multiply",
+      "filename": "numpad_multiply.wav"
+    },
+    {
+      "token": "numpad_minus",
+      "text": "Numpad minus",
+      "filename": "numpad_minus.wav"
+    },
+    {
+      "token": "numpad_plus",
+      "text": "Numpad plus",
+      "filename": "numpad_plus.wav"
+    },
+    {
+      "token": "numpad_enter",
+      "text": "Numpad enter",
+      "filename": "numpad_enter.wav"
+    },
+    {
+      "token": "numpad_1",
+      "text": "Numpad one",
+      "filename": "numpad_1.wav"
+    },
+    {
+      "token": "numpad_2",
+      "text": "Numpad two",
+      "filename": "numpad_2.wav"
+    },
+    {
+      "token": "numpad_3",
+      "text": "Numpad three",
+      "filename": "numpad_3.wav"
+    },
+    {
+      "token": "numpad_4",
+      "text": "Numpad four",
+      "filename": "numpad_4.wav"
+    },
+    {
+      "token": "numpad_5",
+      "text": "Numpad five",
+      "filename": "numpad_5.wav"
+    },
+    {
+      "token": "numpad_6",
+      "text": "Numpad six",
+      "filename": "numpad_6.wav"
+    },
+    {
+      "token": "numpad_7",
+      "text": "Numpad seven",
+      "filename": "numpad_7.wav"
+    },
+    {
+      "token": "numpad_8",
+      "text": "Numpad eight",
+      "filename": "numpad_8.wav"
+    },
+    {
+      "token": "numpad_9",
+      "text": "Numpad nine",
+      "filename": "numpad_9.wav"
+    },
+    {
+      "token": "numpad_0",
+      "text": "Numpad zero",
+      "filename": "numpad_0.wav"
+    },
+    {
+      "token": "numpad_decimal",
+      "text": "Numpad decimal",
+      "filename": "numpad_decimal.wav"
+    },
+    {
+      "token": "menu",
+      "text": "Menu",
+      "filename": "menu.wav"
+    },
+    {
+      "token": "numpad_equals",
+      "text": "Numpad equals",
+      "filename": "numpad_equals.wav"
+    },
+    {
+      "token": "f13",
+      "text": "F 13",
+      "filename": "f13.wav"
+    },
+    {
+      "token": "f14",
+      "text": "F 14",
+      "filename": "f14.wav"
+    },
+    {
+      "token": "f15",
+      "text": "F 15",
+      "filename": "f15.wav"
+    },
+    {
+      "token": "f16",
+      "text": "F 16",
+      "filename": "f16.wav"
+    },
+    {
+      "token": "f17",
+      "text": "F 17",
+      "filename": "f17.wav"
+    },
+    {
+      "token": "f18",
+      "text": "F 18",
+      "filename": "f18.wav"
+    },
+    {
+      "token": "f19",
+      "text": "F 19",
+      "filename": "f19.wav"
+    },
+    {
+      "token": "f20",
+      "text": "F 20",
+      "filename": "f20.wav"
+    },
+    {
+      "token": "f21",
+      "text": "F 21",
+      "filename": "f21.wav"
+    },
+    {
+      "token": "f22",
+      "text": "F 22",
+      "filename": "f22.wav"
+    },
+    {
+      "token": "f23",
+      "text": "F 23",
+      "filename": "f23.wav"
+    },
+    {
+      "token": "f24",
+      "text": "F 24",
+      "filename": "f24.wav"
+    },
+    {
+      "token": "left_control",
+      "text": "Left control",
+      "filename": "left_control.wav"
+    },
+    {
+      "token": "right_control",
+      "text": "Right control",
+      "filename": "right_control.wav"
+    },
+    {
+      "token": "left_shift",
+      "text": "Left shift",
+      "filename": "left_shift.wav"
+    },
+    {
+      "token": "right_shift",
+      "text": "Right shift",
+      "filename": "right_shift.wav"
+    },
+    {
+      "token": "left_alt",
+      "text": "Left alt",
+      "filename": "left_alt.wav"
+    },
+    {
+      "token": "right_alt",
+      "text": "Right alt",
+      "filename": "right_alt.wav"
+    },
+    {
+      "token": "left_gui",
+      "text": "Left command",
+      "filename": "left_gui.wav"
+    },
+    {
+      "token": "right_gui",
+      "text": "Right command",
+      "filename": "right_gui.wav"
+    },
+    {
+      "token": "key_a",
+      "text": "A key",
+      "filename": "key_a.wav"
+    },
+    {
+      "token": "key_b",
+      "text": "B key",
+      "filename": "key_b.wav"
+    },
+    {
+      "token": "key_c",
+      "text": "C key",
+      "filename": "key_c.wav"
+    },
+    {
+      "token": "key_d",
+      "text": "D key",
+      "filename": "key_d.wav"
+    },
+    {
+      "token": "key_e",
+      "text": "E key",
+      "filename": "key_e.wav"
+    },
+    {
+      "token": "key_f",
+      "text": "F key",
+      "filename": "key_f.wav"
+    },
+    {
+      "token": "key_g",
+      "text": "G key",
+      "filename": "key_g.wav"
+    },
+    {
+      "token": "key_h",
+      "text": "H key",
+      "filename": "key_h.wav"
+    },
+    {
+      "token": "key_i",
+      "text": "I key",
+      "filename": "key_i.wav"
+    },
+    {
+      "token": "key_j",
+      "text": "J key",
+      "filename": "key_j.wav"
+    },
+    {
+      "token": "key_k",
+      "text": "K key",
+      "filename": "key_k.wav"
+    },
+    {
+      "token": "key_l",
+      "text": "L key",
+      "filename": "key_l.wav"
+    },
+    {
+      "token": "key_m",
+      "text": "M key",
+      "filename": "key_m.wav"
+    },
+    {
+      "token": "key_n",
+      "text": "N key",
+      "filename": "key_n.wav"
+    },
+    {
+      "token": "key_o",
+      "text": "O key",
+      "filename": "key_o.wav"
+    },
+    {
+      "token": "key_p",
+      "text": "P key",
+      "filename": "key_p.wav"
+    },
+    {
+      "token": "key_q",
+      "text": "Q key",
+      "filename": "key_q.wav"
+    },
+    {
+      "token": "key_r",
+      "text": "R key",
+      "filename": "key_r.wav"
+    },
+    {
+      "token": "key_s",
+      "text": "S key",
+      "filename": "key_s.wav"
+    },
+    {
+      "token": "key_t",
+      "text": "T key",
+      "filename": "key_t.wav"
+    },
+    {
+      "token": "key_u",
+      "text": "U key",
+      "filename": "key_u.wav"
+    },
+    {
+      "token": "key_v",
+      "text": "V key",
+      "filename": "key_v.wav"
+    },
+    {
+      "token": "key_w",
+      "text": "W key",
+      "filename": "key_w.wav"
+    },
+    {
+      "token": "key_x",
+      "text": "X key",
+      "filename": "key_x.wav"
+    },
+    {
+      "token": "key_y",
+      "text": "Y key",
+      "filename": "key_y.wav"
+    },
+    {
+      "token": "key_z",
+      "text": "Z key",
+      "filename": "key_z.wav"
+    },
+    {
+      "token": "key_1",
+      "text": "One key",
+      "filename": "key_1.wav"
+    },
+    {
+      "token": "key_2",
+      "text": "Two key",
+      "filename": "key_2.wav"
+    },
+    {
+      "token": "key_3",
+      "text": "Three key",
+      "filename": "key_3.wav"
+    },
+    {
+      "token": "key_4",
+      "text": "Four key",
+      "filename": "key_4.wav"
+    },
+    {
+      "token": "key_5",
+      "text": "Five key",
+      "filename": "key_5.wav"
+    },
+    {
+      "token": "key_6",
+      "text": "Six key",
+      "filename": "key_6.wav"
+    },
+    {
+      "token": "key_7",
+      "text": "Seven key",
+      "filename": "key_7.wav"
+    },
+    {
+      "token": "key_8",
+      "text": "Eight key",
+      "filename": "key_8.wav"
+    },
+    {
+      "token": "key_9",
+      "text": "Nine key",
+      "filename": "key_9.wav"
+    },
+    {
+      "token": "key_0",
+      "text": "Zero key",
+      "filename": "key_0.wav"
+    },
+    {
+      "token": "key_minus",
+      "text": "Minus key",
+      "filename": "key_minus.wav"
+    },
+    {
+      "token": "key_equals",
+      "text": "Equals key",
+      "filename": "key_equals.wav"
+    },
+    {
+      "token": "key_left_bracket",
+      "text": "Left bracket key",
+      "filename": "key_left_bracket.wav"
+    },
+    {
+      "token": "key_right_bracket",
+      "text": "Right bracket key",
+      "filename": "key_right_bracket.wav"
+    },
+    {
+      "token": "key_backslash",
+      "text": "Backslash key",
+      "filename": "key_backslash.wav"
+    },
+    {
+      "token": "key_hash",
+      "text": "Hash key",
+      "filename": "key_hash.wav"
+    },
+    {
+      "token": "key_single_quote",
+      "text": "Single quote key",
+      "filename": "key_single_quote.wav"
+    },
+    {
+      "token": "key_semicolon",
+      "text": "Semicolon key",
+      "filename": "key_semicolon.wav"
+    },
+    {
+      "token": "key_slash",
+      "text": "Slash key",
+      "filename": "key_slash.wav"
+    },
+    {
+      "token": "key_backtick",
+      "text": "Backtick key",
+      "filename": "key_backtick.wav"
+    },
+    {
+      "token": "key_comma",
+      "text": "Comma key",
+      "filename": "key_comma.wav"
+    },
+    {
+      "token": "key_period",
+      "text": "Period key",
+      "filename": "key_period.wav"
+    },
+    {
+      "token": "key_enter",
+      "text": "Enter key",
+      "filename": "key_enter.wav"
+    },
+    {
+      "token": "key_escape",
+      "text": "Escape key",
+      "filename": "key_escape.wav"
+    },
+    {
+      "token": "key_backspace",
+      "text": "Backspace key",
+      "filename": "key_backspace.wav"
+    },
+    {
+      "token": "key_tab",
+      "text": "Tab key",
+      "filename": "key_tab.wav"
+    },
+    {
+      "token": "key_space",
+      "text": "Space key",
+      "filename": "key_space.wav"
+    },
+    {
+      "token": "key_caps_lock",
+      "text": "Caps lock key",
+      "filename": "key_caps_lock.wav"
+    },
+    {
+      "token": "key_f1",
+      "text": "F 1 key",
+      "filename": "key_f1.wav"
+    },
+    {
+      "token": "key_f2",
+      "text": "F 2 key",
+      "filename": "key_f2.wav"
+    },
+    {
+      "token": "key_f3",
+      "text": "F 3 key",
+      "filename": "key_f3.wav"
+    },
+    {
+      "token": "key_f4",
+      "text": "F 4 key",
+      "filename": "key_f4.wav"
+    },
+    {
+      "token": "key_f5",
+      "text": "F 5 key",
+      "filename": "key_f5.wav"
+    },
+    {
+      "token": "key_f6",
+      "text": "F 6 key",
+      "filename": "key_f6.wav"
+    },
+    {
+      "token": "key_f7",
+      "text": "F 7 key",
+      "filename": "key_f7.wav"
+    },
+    {
+      "token": "key_f8",
+      "text": "F 8 key",
+      "filename": "key_f8.wav"
+    },
+    {
+      "token": "key_f9",
+      "text": "F 9 key",
+      "filename": "key_f9.wav"
+    },
+    {
+      "token": "key_f10",
+      "text": "F 10 key",
+      "filename": "key_f10.wav"
+    },
+    {
+      "token": "key_f11",
+      "text": "F 11 key",
+      "filename": "key_f11.wav"
+    },
+    {
+      "token": "key_f12",
+      "text": "F 12 key",
+      "filename": "key_f12.wav"
+    },
+    {
+      "token": "key_print_screen",
+      "text": "Print screen key",
+      "filename": "key_print_screen.wav"
+    },
+    {
+      "token": "key_scroll_lock",
+      "text": "Scroll lock key",
+      "filename": "key_scroll_lock.wav"
+    },
+    {
+      "token": "key_pause",
+      "text": "Pause key",
+      "filename": "key_pause.wav"
+    },
+    {
+      "token": "key_insert",
+      "text": "Insert key",
+      "filename": "key_insert.wav"
+    },
+    {
+      "token": "key_home",
+      "text": "Home key",
+      "filename": "key_home.wav"
+    },
+    {
+      "token": "key_page_up",
+      "text": "Page up key",
+      "filename": "key_page_up.wav"
+    },
+    {
+      "token": "key_delete",
+      "text": "Delete key",
+      "filename": "key_delete.wav"
+    },
+    {
+      "token": "key_end",
+      "text": "End key",
+      "filename": "key_end.wav"
+    },
+    {
+      "token": "key_page_down",
+      "text": "Page down key",
+      "filename": "key_page_down.wav"
+    },
+    {
+      "token": "key_arrow_right",
+      "text": "Right arrow key",
+      "filename": "key_arrow_right.wav"
+    },
+    {
+      "token": "key_arrow_left",
+      "text": "Left arrow key",
+      "filename": "key_arrow_left.wav"
+    },
+    {
+      "token": "key_arrow_down",
+      "text": "Down arrow key",
+      "filename": "key_arrow_down.wav"
+    },
+    {
+      "token": "key_arrow_up",
+      "text": "Up arrow key",
+      "filename": "key_arrow_up.wav"
+    },
+    {
+      "token": "key_num_lock",
+      "text": "Num lock key",
+      "filename": "key_num_lock.wav"
+    },
+    {
+      "token": "key_numpad_divide",
+      "text": "Numpad divide key",
+      "filename": "key_numpad_divide.wav"
+    },
+    {
+      "token": "key_numpad_multiply",
+      "text": "Numpad multiply key",
+      "filename": "key_numpad_multiply.wav"
+    },
+    {
+      "token": "key_numpad_minus",
+      "text": "Numpad minus key",
+      "filename": "key_numpad_minus.wav"
+    },
+    {
+      "token": "key_numpad_plus",
+      "text": "Numpad plus key",
+      "filename": "key_numpad_plus.wav"
+    },
+    {
+      "token": "key_numpad_enter",
+      "text": "Numpad enter key",
+      "filename": "key_numpad_enter.wav"
+    },
+    {
+      "token": "key_numpad_1",
+      "text": "Numpad one key",
+      "filename": "key_numpad_1.wav"
+    },
+    {
+      "token": "key_numpad_2",
+      "text": "Numpad two key",
+      "filename": "key_numpad_2.wav"
+    },
+    {
+      "token": "key_numpad_3",
+      "text": "Numpad three key",
+      "filename": "key_numpad_3.wav"
+    },
+    {
+      "token": "key_numpad_4",
+      "text": "Numpad four key",
+      "filename": "key_numpad_4.wav"
+    },
+    {
+      "token": "key_numpad_5",
+      "text": "Numpad five key",
+      "filename": "key_numpad_5.wav"
+    },
+    {
+      "token": "key_numpad_6",
+      "text": "Numpad six key",
+      "filename": "key_numpad_6.wav"
+    },
+    {
+      "token": "key_numpad_7",
+      "text": "Numpad seven key",
+      "filename": "key_numpad_7.wav"
+    },
+    {
+      "token": "key_numpad_8",
+      "text": "Numpad eight key",
+      "filename": "key_numpad_8.wav"
+    },
+    {
+      "token": "key_numpad_9",
+      "text": "Numpad nine key",
+      "filename": "key_numpad_9.wav"
+    },
+    {
+      "token": "key_numpad_0",
+      "text": "Numpad zero key",
+      "filename": "key_numpad_0.wav"
+    },
+    {
+      "token": "key_numpad_decimal",
+      "text": "Numpad decimal key",
+      "filename": "key_numpad_decimal.wav"
+    },
+    {
+      "token": "key_menu",
+      "text": "Menu key",
+      "filename": "key_menu.wav"
+    },
+    {
+      "token": "key_numpad_equals",
+      "text": "Numpad equals key",
+      "filename": "key_numpad_equals.wav"
+    },
+    {
+      "token": "key_f13",
+      "text": "F 13 key",
+      "filename": "key_f13.wav"
+    },
+    {
+      "token": "key_f14",
+      "text": "F 14 key",
+      "filename": "key_f14.wav"
+    },
+    {
+      "token": "key_f15",
+      "text": "F 15 key",
+      "filename": "key_f15.wav"
+    },
+    {
+      "token": "key_f16",
+      "text": "F 16 key",
+      "filename": "key_f16.wav"
+    },
+    {
+      "token": "key_f17",
+      "text": "F 17 key",
+      "filename": "key_f17.wav"
+    },
+    {
+      "token": "key_f18",
+      "text": "F 18 key",
+      "filename": "key_f18.wav"
+    },
+    {
+      "token": "key_f19",
+      "text": "F 19 key",
+      "filename": "key_f19.wav"
+    },
+    {
+      "token": "key_f20",
+      "text": "F 20 key",
+      "filename": "key_f20.wav"
+    },
+    {
+      "token": "key_f21",
+      "text": "F 21 key",
+      "filename": "key_f21.wav"
+    },
+    {
+      "token": "key_f22",
+      "text": "F 22 key",
+      "filename": "key_f22.wav"
+    },
+    {
+      "token": "key_f23",
+      "text": "F 23 key",
+      "filename": "key_f23.wav"
+    },
+    {
+      "token": "key_f24",
+      "text": "F 24 key",
+      "filename": "key_f24.wav"
+    }
   ]
 }

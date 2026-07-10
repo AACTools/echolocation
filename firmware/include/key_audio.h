@@ -18,6 +18,7 @@ struct KeyAudioDebugInfo {
 void keyAudioBegin();
 void keyAudioRefresh();
 void keyAudioGetDebugInfo(KeyAudioDebugInfo* info);
+void keyAudioPlayForToken(const char* token);
 void keyAudioPlayForLabel(const char* label);
 void keyAudioSetVolume(uint8_t volume);
 uint8_t keyAudioGetVolume();

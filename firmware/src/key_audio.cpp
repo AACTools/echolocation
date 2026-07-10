@@ -6,7 +6,6 @@
 #include <SD.h>
 #include <SPI.h>
 
-#include <cctype>
 #include <cstring>
 
 #include <esp_heap_caps.h>
@@ -18,8 +17,8 @@ constexpr int kLcdCs = 3;
 constexpr int kSdCs = 4;
 constexpr char kAudioDir[] = "/audio";
 constexpr uint32_t kFspiQOutIdx = 102;
-constexpr size_t kMaxCachedFiles = 128;
-constexpr size_t kBasenameLen = 16;
+constexpr size_t kMaxCachedFiles = 300;
+constexpr size_t kBasenameLen = 32;
 
 struct CachedWav {
   char basename[kBasenameLen];
@@ -49,25 +48,19 @@ bool mountSdCard() {
   return SD.begin(kSdCs, SPI, 25000000);
 }
 
-bool labelToBasename(const char* label, char* out, size_t out_len) {
-  if (label == nullptr || label[0] == '\0' || out_len < 2) {
+bool tokenToBasename(const char* token, char* out, size_t out_len) {
+  if (token == nullptr || token[0] == '\0' || out_len < 2) {
     return false;
   }
 
-  const size_t label_len = strlen(label);
-  if (label_len == 1) {
-    char c = label[0];
-    if (isalpha(static_cast<unsigned char>(c))) {
-      c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
-    }
-    out[0] = c;
-    out[1] = '\0';
-    return true;
-  }
-
   size_t i = 0;
-  for (; i + 1 < out_len && label[i] != '\0'; ++i) {
-    out[i] = static_cast<char>(tolower(static_cast<unsigned char>(label[i])));
+  for (; i + 1 < out_len && token[i] != '\0'; ++i) {
+    const unsigned char c = static_cast<unsigned char>(token[i]);
+    if (c >= 'A' && c <= 'Z') {
+      out[i] = static_cast<char>(c - 'A' + 'a');
+    } else {
+      out[i] = static_cast<char>(c);
+    }
   }
   out[i] = '\0';
   return i > 0;
@@ -260,13 +253,13 @@ void keyAudioGetDebugInfo(KeyAudioDebugInfo* info) {
   }
 }
 
-void keyAudioPlayForLabel(const char* label) {
-  if (label == nullptr || label[0] == '\0') {
+void keyAudioPlayForToken(const char* token) {
+  if (token == nullptr || token[0] == '\0') {
     return;
   }
 
-  char basename[16];
-  if (!labelToBasename(label, basename, sizeof(basename))) {
+  char basename[32];
+  if (!tokenToBasename(token, basename, sizeof(basename))) {
     return;
   }
 
@@ -275,8 +268,11 @@ void keyAudioPlayForLabel(const char* label) {
     return;
   }
 
+  speakerRouteStop();
   speakerRoutePlayWav(cached->data, cached->size);
 }
+
+void keyAudioPlayForLabel(const char* label) { keyAudioPlayForToken(label); }
 
 void keyAudioSetVolume(uint8_t volume) { speakerRouteSetVolume(volume); }
 
