@@ -17,13 +17,16 @@ constexpr int kLcdCs = 3;
 constexpr int kSdCs = 4;
 constexpr char kAudioDir[] = "/audio";
 constexpr uint32_t kFspiQOutIdx = 102;
-constexpr size_t kMaxCachedFiles = 300;
+// Keep a small hot cache so boot does not load every WAV into RAM.
+// CoreS3 PSRAM is ~8MB; the full speech set is larger than that.
+constexpr size_t kMaxCachedFiles = 48;
 constexpr size_t kBasenameLen = 32;
 
 struct CachedWav {
   char basename[kBasenameLen];
   uint8_t* data = nullptr;
   size_t size = 0;
+  uint32_t last_used_ms = 0;
 };
 
 bool sd_ready = false;
@@ -66,111 +69,32 @@ bool tokenToBasename(const char* token, char* out, size_t out_len) {
   return i > 0;
 }
 
-uint8_t* allocBuffer(size_t size) {
-  uint8_t* buffer = static_cast<uint8_t*>(
+uint8_t* allocWavBuffer(size_t size) {
+  // WAV data must stay in PSRAM. Falling back to internal RAM starves LVGL
+  // and can leave the screen stuck on a blank/gray frame.
+  return static_cast<uint8_t*>(
       heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-  if (buffer == nullptr) {
-    buffer = static_cast<uint8_t*>(malloc(size));
+}
+
+void freeCachedEntry(CachedWav* entry) {
+  if (entry == nullptr) {
+    return;
   }
-  return buffer;
+  free(entry->data);
+  entry->data = nullptr;
+  entry->size = 0;
+  entry->last_used_ms = 0;
+  entry->basename[0] = '\0';
 }
 
 void clearWavCache() {
   for (size_t i = 0; i < cached_wav_count; ++i) {
-    free(cached_wavs[i].data);
-    cached_wavs[i].data = nullptr;
-    cached_wavs[i].size = 0;
-    cached_wavs[i].basename[0] = '\0';
+    freeCachedEntry(&cached_wavs[i]);
   }
   cached_wav_count = 0;
 }
 
-bool cacheWavFile(const char* basename) {
-  if (basename == nullptr || basename[0] == '\0' ||
-      cached_wav_count >= kMaxCachedFiles) {
-    return false;
-  }
-
-  char path[48];
-  snprintf(path, sizeof(path), "%s/%s.wav", kAudioDir, basename);
-  if (!SD.exists(path)) {
-    return false;
-  }
-
-  File file = SD.open(path, FILE_READ);
-  if (!file) {
-    return false;
-  }
-
-  const size_t file_size = file.size();
-  if (file_size == 0) {
-    file.close();
-    return false;
-  }
-
-  uint8_t* buffer = allocBuffer(file_size);
-  if (buffer == nullptr) {
-    file.close();
-    return false;
-  }
-
-  const size_t bytes_read = file.read(buffer, file_size);
-  file.close();
-  if (bytes_read != file_size) {
-    free(buffer);
-    return false;
-  }
-
-  CachedWav* entry = &cached_wavs[cached_wav_count++];
-  strncpy(entry->basename, basename, sizeof(entry->basename) - 1);
-  entry->basename[sizeof(entry->basename) - 1] = '\0';
-  entry->data = buffer;
-  entry->size = file_size;
-  return true;
-}
-
-void loadWavCacheFromSd() {
-  clearWavCache();
-
-  File dir = SD.open(kAudioDir);
-  if (!dir || !dir.isDirectory()) {
-    if (dir) {
-      dir.close();
-    }
-    return;
-  }
-
-  for (File entry = dir.openNextFile(); entry && cached_wav_count < kMaxCachedFiles;
-       entry = dir.openNextFile()) {
-    if (entry.isDirectory()) {
-      entry.close();
-      continue;
-    }
-
-    const char* filename = entry.name();
-    const size_t name_len = strlen(filename);
-    if (name_len < 5 || strcasecmp(filename + name_len - 4, ".wav") != 0) {
-      entry.close();
-      continue;
-    }
-
-    char basename[kBasenameLen];
-    const size_t base_len = name_len - 4;
-    if (base_len >= sizeof(basename)) {
-      entry.close();
-      continue;
-    }
-    memcpy(basename, filename, base_len);
-    basename[base_len] = '\0';
-    entry.close();
-
-    cacheWavFile(basename);
-  }
-
-  dir.close();
-}
-
-const CachedWav* findCachedWav(const char* basename) {
+CachedWav* findCachedWavMutable(const char* basename) {
   if (basename == nullptr) {
     return nullptr;
   }
@@ -183,8 +107,102 @@ const CachedWav* findCachedWav(const char* basename) {
   return nullptr;
 }
 
-bool audioFileExists(const char* filename) {
-  return findCachedWav(filename) != nullptr;
+CachedWav* findOldestCachedWav() {
+  if (cached_wav_count == 0) {
+    return nullptr;
+  }
+
+  CachedWav* oldest = &cached_wavs[0];
+  for (size_t i = 1; i < cached_wav_count; ++i) {
+    if (cached_wavs[i].last_used_ms < oldest->last_used_ms) {
+      oldest = &cached_wavs[i];
+    }
+  }
+  return oldest;
+}
+
+CachedWav* allocateCacheSlot() {
+  if (cached_wav_count < kMaxCachedFiles) {
+    return &cached_wavs[cached_wav_count++];
+  }
+
+  CachedWav* oldest = findOldestCachedWav();
+  freeCachedEntry(oldest);
+  return oldest;
+}
+
+bool loadWavIntoCache(const char* basename) {
+  if (basename == nullptr || basename[0] == '\0' || !sd_ready) {
+    return false;
+  }
+
+  if (findCachedWavMutable(basename) != nullptr) {
+    return true;
+  }
+
+  char path[48];
+  snprintf(path, sizeof(path), "%s/%s.wav", kAudioDir, basename);
+
+  prepareSdBus();
+  File file = SD.open(path, FILE_READ);
+  if (!file) {
+    return false;
+  }
+
+  const size_t file_size = file.size();
+  if (file_size == 0) {
+    file.close();
+    return false;
+  }
+
+  uint8_t* buffer = allocWavBuffer(file_size);
+  if (buffer == nullptr) {
+    CachedWav* oldest = findOldestCachedWav();
+    if (oldest != nullptr) {
+      freeCachedEntry(oldest);
+    }
+    buffer = allocWavBuffer(file_size);
+    if (buffer == nullptr) {
+      file.close();
+      return false;
+    }
+  }
+
+  const size_t bytes_read = file.read(buffer, file_size);
+  file.close();
+  if (bytes_read != file_size) {
+    free(buffer);
+    return false;
+  }
+
+  CachedWav* entry = findCachedWavMutable(basename);
+  if (entry == nullptr) {
+    entry = allocateCacheSlot();
+  }
+  if (entry == nullptr) {
+    free(buffer);
+    return false;
+  }
+
+  // Slot may already hold an evicted entry's leftover pointers.
+  free(entry->data);
+  strncpy(entry->basename, basename, sizeof(entry->basename) - 1);
+  entry->basename[sizeof(entry->basename) - 1] = '\0';
+  entry->data = buffer;
+  entry->size = file_size;
+  entry->last_used_ms = millis();
+  return true;
+}
+
+bool probeWavOnSd(const char* basename) {
+  if (!sd_ready || basename == nullptr || basename[0] == '\0') {
+    return false;
+  }
+
+  char path[48];
+  snprintf(path, sizeof(path), "%s/%s.wav", kAudioDir, basename);
+  prepareSdBus();
+  return SD.exists(path);
 }
 
 void ensureSdReady() {
@@ -198,19 +216,16 @@ void ensureSdReady() {
 
 void keyAudioBegin() {
   sd_ready = mountSdCard();
-  if (sd_ready) {
-    loadWavCacheFromSd();
-  }
+  clearWavCache();
 }
 
 void keyAudioRefresh() {
   SD.end();
+  clearWavCache();
   sd_ready = mountSdCard();
-  if (sd_ready) {
-    loadWavCacheFromSd();
-  } else {
-    clearWavCache();
-  }
+  Serial.printf("[audio] sd %s (lazy cache, max %u clips)\n",
+                sd_ready ? "ready" : "missing",
+                static_cast<unsigned>(kMaxCachedFiles));
 }
 
 void keyAudioGetDebugInfo(KeyAudioDebugInfo* info) {
@@ -229,11 +244,11 @@ void keyAudioGetDebugInfo(KeyAudioDebugInfo* info) {
   }
 
   info->audio_dir_exists = SD.exists(kAudioDir);
-  info->probe_a_wav = audioFileExists("a");
-  info->probe_b_wav = audioFileExists("b");
-  info->probe_c_wav = audioFileExists("c");
-  info->probe_space_wav = audioFileExists("space");
-  info->probe_enter_wav = audioFileExists("enter");
+  info->probe_a_wav = probeWavOnSd("a");
+  info->probe_b_wav = probeWavOnSd("b");
+  info->probe_c_wav = probeWavOnSd("c");
+  info->probe_space_wav = probeWavOnSd("space");
+  info->probe_enter_wav = probeWavOnSd("enter");
 
   info->probe_files_found = 0;
   if (info->probe_a_wav) {
@@ -263,11 +278,23 @@ void keyAudioPlayForToken(const char* token) {
     return;
   }
 
-  const CachedWav* cached = findCachedWav(basename);
+  ensureSdReady();
+  if (!sd_ready) {
+    return;
+  }
+
+  CachedWav* cached = findCachedWavMutable(basename);
+  if (cached == nullptr) {
+    if (!loadWavIntoCache(basename)) {
+      return;
+    }
+    cached = findCachedWavMutable(basename);
+  }
   if (cached == nullptr || cached->data == nullptr || cached->size == 0) {
     return;
   }
 
+  cached->last_used_ms = millis();
   speakerRouteStop();
   speakerRoutePlayWav(cached->data, cached->size);
 }

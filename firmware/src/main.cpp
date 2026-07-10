@@ -77,6 +77,7 @@ void setup() {
   uiSetLoadingStatus("Loading audio...");
   pumpLoadingUi();
   keyAudioRefresh();
+  pumpLoadingUi();
 
   uiSetLoadingStatus("Starting speakers...");
   pumpLoadingUi();
@@ -84,6 +85,7 @@ void setup() {
   speakerRouteBegin();
 
   updateBatteryStatus();
+  Serial.println("[boot] ready");
   uiFinishLoading();
 }
 
