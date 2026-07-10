@@ -702,552 +702,552 @@
     },
     {
       "token": "key_a",
-      "text": "A key",
+      "text": "A",
       "filename": "key_a.wav"
     },
     {
       "token": "key_b",
-      "text": "B key",
+      "text": "B",
       "filename": "key_b.wav"
     },
     {
       "token": "key_c",
-      "text": "C key",
+      "text": "C",
       "filename": "key_c.wav"
     },
     {
       "token": "key_d",
-      "text": "D key",
+      "text": "D",
       "filename": "key_d.wav"
     },
     {
       "token": "key_e",
-      "text": "E key",
+      "text": "E",
       "filename": "key_e.wav"
     },
     {
       "token": "key_f",
-      "text": "F key",
+      "text": "F",
       "filename": "key_f.wav"
     },
     {
       "token": "key_g",
-      "text": "G key",
+      "text": "G",
       "filename": "key_g.wav"
     },
     {
       "token": "key_h",
-      "text": "H key",
+      "text": "H",
       "filename": "key_h.wav"
     },
     {
       "token": "key_i",
-      "text": "I key",
+      "text": "I",
       "filename": "key_i.wav"
     },
     {
       "token": "key_j",
-      "text": "J key",
+      "text": "J",
       "filename": "key_j.wav"
     },
     {
       "token": "key_k",
-      "text": "K key",
+      "text": "K",
       "filename": "key_k.wav"
     },
     {
       "token": "key_l",
-      "text": "L key",
+      "text": "L",
       "filename": "key_l.wav"
     },
     {
       "token": "key_m",
-      "text": "M key",
+      "text": "M",
       "filename": "key_m.wav"
     },
     {
       "token": "key_n",
-      "text": "N key",
+      "text": "N",
       "filename": "key_n.wav"
     },
     {
       "token": "key_o",
-      "text": "O key",
+      "text": "O",
       "filename": "key_o.wav"
     },
     {
       "token": "key_p",
-      "text": "P key",
+      "text": "P",
       "filename": "key_p.wav"
     },
     {
       "token": "key_q",
-      "text": "Q key",
+      "text": "Q",
       "filename": "key_q.wav"
     },
     {
       "token": "key_r",
-      "text": "R key",
+      "text": "R",
       "filename": "key_r.wav"
     },
     {
       "token": "key_s",
-      "text": "S key",
+      "text": "S",
       "filename": "key_s.wav"
     },
     {
       "token": "key_t",
-      "text": "T key",
+      "text": "T",
       "filename": "key_t.wav"
     },
     {
       "token": "key_u",
-      "text": "U key",
+      "text": "U",
       "filename": "key_u.wav"
     },
     {
       "token": "key_v",
-      "text": "V key",
+      "text": "V",
       "filename": "key_v.wav"
     },
     {
       "token": "key_w",
-      "text": "W key",
+      "text": "W",
       "filename": "key_w.wav"
     },
     {
       "token": "key_x",
-      "text": "X key",
+      "text": "X",
       "filename": "key_x.wav"
     },
     {
       "token": "key_y",
-      "text": "Y key",
+      "text": "Y",
       "filename": "key_y.wav"
     },
     {
       "token": "key_z",
-      "text": "Z key",
+      "text": "Z",
       "filename": "key_z.wav"
     },
     {
       "token": "key_1",
-      "text": "One key",
+      "text": "One",
       "filename": "key_1.wav"
     },
     {
       "token": "key_2",
-      "text": "Two key",
+      "text": "Two",
       "filename": "key_2.wav"
     },
     {
       "token": "key_3",
-      "text": "Three key",
+      "text": "Three",
       "filename": "key_3.wav"
     },
     {
       "token": "key_4",
-      "text": "Four key",
+      "text": "Four",
       "filename": "key_4.wav"
     },
     {
       "token": "key_5",
-      "text": "Five key",
+      "text": "Five",
       "filename": "key_5.wav"
     },
     {
       "token": "key_6",
-      "text": "Six key",
+      "text": "Six",
       "filename": "key_6.wav"
     },
     {
       "token": "key_7",
-      "text": "Seven key",
+      "text": "Seven",
       "filename": "key_7.wav"
     },
     {
       "token": "key_8",
-      "text": "Eight key",
+      "text": "Eight",
       "filename": "key_8.wav"
     },
     {
       "token": "key_9",
-      "text": "Nine key",
+      "text": "Nine",
       "filename": "key_9.wav"
     },
     {
       "token": "key_0",
-      "text": "Zero key",
+      "text": "Zero",
       "filename": "key_0.wav"
     },
     {
       "token": "key_minus",
-      "text": "Minus key",
+      "text": "Minus",
       "filename": "key_minus.wav"
     },
     {
       "token": "key_equals",
-      "text": "Equals key",
+      "text": "Equals",
       "filename": "key_equals.wav"
     },
     {
       "token": "key_left_bracket",
-      "text": "Left bracket key",
+      "text": "Left bracket",
       "filename": "key_left_bracket.wav"
     },
     {
       "token": "key_right_bracket",
-      "text": "Right bracket key",
+      "text": "Right bracket",
       "filename": "key_right_bracket.wav"
     },
     {
       "token": "key_backslash",
-      "text": "Backslash key",
+      "text": "Backslash",
       "filename": "key_backslash.wav"
     },
     {
       "token": "key_hash",
-      "text": "Hash key",
+      "text": "Hash",
       "filename": "key_hash.wav"
     },
     {
       "token": "key_single_quote",
-      "text": "Single quote key",
+      "text": "Single quote",
       "filename": "key_single_quote.wav"
     },
     {
       "token": "key_semicolon",
-      "text": "Semicolon key",
+      "text": "Semicolon",
       "filename": "key_semicolon.wav"
     },
     {
       "token": "key_slash",
-      "text": "Slash key",
+      "text": "Slash",
       "filename": "key_slash.wav"
     },
     {
       "token": "key_backtick",
-      "text": "Backtick key",
+      "text": "Backtick",
       "filename": "key_backtick.wav"
     },
     {
       "token": "key_comma",
-      "text": "Comma key",
+      "text": "Comma",
       "filename": "key_comma.wav"
     },
     {
       "token": "key_period",
-      "text": "Period key",
+      "text": "Period",
       "filename": "key_period.wav"
     },
     {
       "token": "key_enter",
-      "text": "Enter key",
+      "text": "Enter",
       "filename": "key_enter.wav"
     },
     {
       "token": "key_escape",
-      "text": "Escape key",
+      "text": "Escape",
       "filename": "key_escape.wav"
     },
     {
       "token": "key_backspace",
-      "text": "Backspace key",
+      "text": "Backspace",
       "filename": "key_backspace.wav"
     },
     {
       "token": "key_tab",
-      "text": "Tab key",
+      "text": "Tab",
       "filename": "key_tab.wav"
     },
     {
       "token": "key_space",
-      "text": "Space key",
+      "text": "Space",
       "filename": "key_space.wav"
     },
     {
       "token": "key_caps_lock",
-      "text": "Caps lock key",
+      "text": "Caps lock",
       "filename": "key_caps_lock.wav"
     },
     {
       "token": "key_f1",
-      "text": "F 1 key",
+      "text": "F 1",
       "filename": "key_f1.wav"
     },
     {
       "token": "key_f2",
-      "text": "F 2 key",
+      "text": "F 2",
       "filename": "key_f2.wav"
     },
     {
       "token": "key_f3",
-      "text": "F 3 key",
+      "text": "F 3",
       "filename": "key_f3.wav"
     },
     {
       "token": "key_f4",
-      "text": "F 4 key",
+      "text": "F 4",
       "filename": "key_f4.wav"
     },
     {
       "token": "key_f5",
-      "text": "F 5 key",
+      "text": "F 5",
       "filename": "key_f5.wav"
     },
     {
       "token": "key_f6",
-      "text": "F 6 key",
+      "text": "F 6",
       "filename": "key_f6.wav"
     },
     {
       "token": "key_f7",
-      "text": "F 7 key",
+      "text": "F 7",
       "filename": "key_f7.wav"
     },
     {
       "token": "key_f8",
-      "text": "F 8 key",
+      "text": "F 8",
       "filename": "key_f8.wav"
     },
     {
       "token": "key_f9",
-      "text": "F 9 key",
+      "text": "F 9",
       "filename": "key_f9.wav"
     },
     {
       "token": "key_f10",
-      "text": "F 10 key",
+      "text": "F 10",
       "filename": "key_f10.wav"
     },
     {
       "token": "key_f11",
-      "text": "F 11 key",
+      "text": "F 11",
       "filename": "key_f11.wav"
     },
     {
       "token": "key_f12",
-      "text": "F 12 key",
+      "text": "F 12",
       "filename": "key_f12.wav"
     },
     {
       "token": "key_print_screen",
-      "text": "Print screen key",
+      "text": "Print screen",
       "filename": "key_print_screen.wav"
     },
     {
       "token": "key_scroll_lock",
-      "text": "Scroll lock key",
+      "text": "Scroll lock",
       "filename": "key_scroll_lock.wav"
     },
     {
       "token": "key_pause",
-      "text": "Pause key",
+      "text": "Pause",
       "filename": "key_pause.wav"
     },
     {
       "token": "key_insert",
-      "text": "Insert key",
+      "text": "Insert",
       "filename": "key_insert.wav"
     },
     {
       "token": "key_home",
-      "text": "Home key",
+      "text": "Home",
       "filename": "key_home.wav"
     },
     {
       "token": "key_page_up",
-      "text": "Page up key",
+      "text": "Page up",
       "filename": "key_page_up.wav"
     },
     {
       "token": "key_delete",
-      "text": "Delete key",
+      "text": "Delete",
       "filename": "key_delete.wav"
     },
     {
       "token": "key_end",
-      "text": "End key",
+      "text": "End",
       "filename": "key_end.wav"
     },
     {
       "token": "key_page_down",
-      "text": "Page down key",
+      "text": "Page down",
       "filename": "key_page_down.wav"
     },
     {
       "token": "key_arrow_right",
-      "text": "Right arrow key",
+      "text": "Right arrow",
       "filename": "key_arrow_right.wav"
     },
     {
       "token": "key_arrow_left",
-      "text": "Left arrow key",
+      "text": "Left arrow",
       "filename": "key_arrow_left.wav"
     },
     {
       "token": "key_arrow_down",
-      "text": "Down arrow key",
+      "text": "Down arrow",
       "filename": "key_arrow_down.wav"
     },
     {
       "token": "key_arrow_up",
-      "text": "Up arrow key",
+      "text": "Up arrow",
       "filename": "key_arrow_up.wav"
     },
     {
       "token": "key_num_lock",
-      "text": "Num lock key",
+      "text": "Num lock",
       "filename": "key_num_lock.wav"
     },
     {
       "token": "key_numpad_divide",
-      "text": "Numpad divide key",
+      "text": "Numpad divide",
       "filename": "key_numpad_divide.wav"
     },
     {
       "token": "key_numpad_multiply",
-      "text": "Numpad multiply key",
+      "text": "Numpad multiply",
       "filename": "key_numpad_multiply.wav"
     },
     {
       "token": "key_numpad_minus",
-      "text": "Numpad minus key",
+      "text": "Numpad minus",
       "filename": "key_numpad_minus.wav"
     },
     {
       "token": "key_numpad_plus",
-      "text": "Numpad plus key",
+      "text": "Numpad plus",
       "filename": "key_numpad_plus.wav"
     },
     {
       "token": "key_numpad_enter",
-      "text": "Numpad enter key",
+      "text": "Numpad enter",
       "filename": "key_numpad_enter.wav"
     },
     {
       "token": "key_numpad_1",
-      "text": "Numpad one key",
+      "text": "Numpad one",
       "filename": "key_numpad_1.wav"
     },
     {
       "token": "key_numpad_2",
-      "text": "Numpad two key",
+      "text": "Numpad two",
       "filename": "key_numpad_2.wav"
     },
     {
       "token": "key_numpad_3",
-      "text": "Numpad three key",
+      "text": "Numpad three",
       "filename": "key_numpad_3.wav"
     },
     {
       "token": "key_numpad_4",
-      "text": "Numpad four key",
+      "text": "Numpad four",
       "filename": "key_numpad_4.wav"
     },
     {
       "token": "key_numpad_5",
-      "text": "Numpad five key",
+      "text": "Numpad five",
       "filename": "key_numpad_5.wav"
     },
     {
       "token": "key_numpad_6",
-      "text": "Numpad six key",
+      "text": "Numpad six",
       "filename": "key_numpad_6.wav"
     },
     {
       "token": "key_numpad_7",
-      "text": "Numpad seven key",
+      "text": "Numpad seven",
       "filename": "key_numpad_7.wav"
     },
     {
       "token": "key_numpad_8",
-      "text": "Numpad eight key",
+      "text": "Numpad eight",
       "filename": "key_numpad_8.wav"
     },
     {
       "token": "key_numpad_9",
-      "text": "Numpad nine key",
+      "text": "Numpad nine",
       "filename": "key_numpad_9.wav"
     },
     {
       "token": "key_numpad_0",
-      "text": "Numpad zero key",
+      "text": "Numpad zero",
       "filename": "key_numpad_0.wav"
     },
     {
       "token": "key_numpad_decimal",
-      "text": "Numpad decimal key",
+      "text": "Numpad decimal",
       "filename": "key_numpad_decimal.wav"
     },
     {
       "token": "key_menu",
-      "text": "Menu key",
+      "text": "Menu",
       "filename": "key_menu.wav"
     },
     {
       "token": "key_numpad_equals",
-      "text": "Numpad equals key",
+      "text": "Numpad equals",
       "filename": "key_numpad_equals.wav"
     },
     {
       "token": "key_f13",
-      "text": "F 13 key",
+      "text": "F 13",
       "filename": "key_f13.wav"
     },
     {
       "token": "key_f14",
-      "text": "F 14 key",
+      "text": "F 14",
       "filename": "key_f14.wav"
     },
     {
       "token": "key_f15",
-      "text": "F 15 key",
+      "text": "F 15",
       "filename": "key_f15.wav"
     },
     {
       "token": "key_f16",
-      "text": "F 16 key",
+      "text": "F 16",
       "filename": "key_f16.wav"
     },
     {
       "token": "key_f17",
-      "text": "F 17 key",
+      "text": "F 17",
       "filename": "key_f17.wav"
     },
     {
       "token": "key_f18",
-      "text": "F 18 key",
+      "text": "F 18",
       "filename": "key_f18.wav"
     },
     {
       "token": "key_f19",
-      "text": "F 19 key",
+      "text": "F 19",
       "filename": "key_f19.wav"
     },
     {
       "token": "key_f20",
-      "text": "F 20 key",
+      "text": "F 20",
       "filename": "key_f20.wav"
     },
     {
       "token": "key_f21",
-      "text": "F 21 key",
+      "text": "F 21",
       "filename": "key_f21.wav"
     },
     {
       "token": "key_f22",
-      "text": "F 22 key",
+      "text": "F 22",
       "filename": "key_f22.wav"
     },
     {
       "token": "key_f23",
-      "text": "F 23 key",
+      "text": "F 23",
       "filename": "key_f23.wav"
     },
     {
       "token": "key_f24",
-      "text": "F 24 key",
+      "text": "F 24",
       "filename": "key_f24.wav"
     }
   ]
