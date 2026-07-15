@@ -20,6 +20,15 @@ constexpr uint32_t kLoadingPumpSliceMs = 30;
 // CoreS3 shared SPI chip-selects (idle high).
 constexpr int kLcdCsPin = 3;
 constexpr int kSdCsPin = 4;
+constexpr int kUsbHostSsPin = 1;  // MAX3421 SS on USB module
+
+// AW9523B — bus / boost gates for stacked modules.
+constexpr uint8_t kAw9523Addr = 0x58;
+constexpr uint8_t kAw9523Port0 = 0x02;
+constexpr uint8_t kAw9523Port1 = 0x03;
+constexpr uint8_t kBusOutEnBit = 0b00000010;     // BUS_OUT 5V to M-Bus
+constexpr uint8_t kBoostEnBit = 0b10000000;      // SY7088 BOOST_EN
+constexpr uint32_t kAw9523I2cHz = 400000;
 
 // AXP2101 — CoreS3 backlight (DLDO1).
 constexpr uint8_t kAxp2101Addr = 0x34;
@@ -50,23 +59,36 @@ void updateBatteryStatus() {
   uiSetBattery(level, charging);
 }
 
-void releaseSharedSpiChipSelects() {
+// On battery the USB host module can brown out and load the shared SPI bus
+// (MOSI/SCK/MISO), which corrupts LCD traffic after a soft reset. Force
+// BOOST + BUS_OUT 5V and hold every CS high before talking to the panel.
+void prepareSharedSpiBus() {
+  M5.Power.setExtOutput(true);
+  M5.In_I2C.bitOn(kAw9523Addr, kAw9523Port1, kBoostEnBit, kAw9523I2cHz);
+  M5.In_I2C.bitOn(kAw9523Addr, kAw9523Port0, kBusOutEnBit, kAw9523I2cHz);
+
   pinMode(kLcdCsPin, OUTPUT);
   digitalWrite(kLcdCsPin, HIGH);
   pinMode(kSdCsPin, OUTPUT);
   digitalWrite(kSdCsPin, HIGH);
+  pinMode(kUsbHostSsPin, OUTPUT);
+  digitalWrite(kUsbHostSsPin, HIGH);
+
+  // Battery → 5V boost needs a moment after RST before SPI is clean.
+  delay(80);
 }
 
 void enableBacklight(uint8_t brightness) {
-  // Mirror Light_M5StackCoreS3::setBrightness so a warm reset cannot leave
-  // DLDO1 off even if the GFX light path is unhappy.
-  const uint8_t voltage = brightness == 0 ? 0 : static_cast<uint8_t>((brightness + 641) >> 5);
+  const uint8_t voltage =
+      brightness == 0 ? 0
+                      : static_cast<uint8_t>((brightness + 641) >> 5);
   if (brightness == 0) {
     M5.In_I2C.bitOff(kAxp2101Addr, kAxpLdoOnOffReg, kAxpDldo1Bit, kAxpI2cHz);
   } else {
     M5.In_I2C.bitOn(kAxp2101Addr, kAxpLdoOnOffReg, kAxpDldo1Bit, kAxpI2cHz);
   }
-  M5.In_I2C.writeRegister8(kAxp2101Addr, kAxpDldo1VoltageReg, voltage, kAxpI2cHz);
+  M5.In_I2C.writeRegister8(kAxp2101Addr, kAxpDldo1VoltageReg, voltage,
+                           kAxpI2cHz);
   M5.Display.setBrightness(brightness);
 }
 
@@ -115,35 +137,41 @@ void sendIli9342InitCommands() {
   delay(120);
 }
 
-// Soft-reset recovery for CoreS3:
-// - Do NOT pulse AW9523 LCD_RST (that blanks the panel after warm reset).
-// - Do NOT call panel->init() (re-inits SPI and breaks GPIO35 DC/MISO).
-// Use the panel SPI software reset, then re-send init over the live bus.
-void recoverDisplayAfterSoftReset() {
-  Serial.printf("[boot] reset reason %d\n",
-                static_cast<int>(esp_reset_reason()));
-
-  releaseSharedSpiChipSelects();
-  enableBacklight(128);
-
+void reinitPanelOverLiveBus() {
+  // SWRESET over SPI — do not pulse AW9523 LCD_RST / panel->init().
   M5.Display.startWrite();
-  writeLcdCommand(0x01);  // SWRESET — resets ILI9342 without AW9523
+  writeLcdCommand(0x01);
   M5.Display.endWrite();
-  delay(150);
+  delay(200);
 
   sendIli9342InitCommands();
 
-  // CoreS3 panel is cfg.invert=true; pass the panel's invert flag through
-  // LGFX so INVON is applied correctly.
   M5.Display.invertDisplay(M5.Display.getInvert());
   M5.Display.setColorDepth(16);
   M5.Display.setRotation(1);
   enableBacklight(128);
-
-  // Brief solid fill proves SPI + backlight before LVGL takes over.
-  M5.Display.fillScreen(TFT_RED);
-  delay(200);
   M5.Display.fillScreen(TFT_BLACK);
+}
+
+// Soft-reset display recovery. Unreliable on battery without BUS_OUT 5V
+// because the stacked USB module loads the shared SPI lines.
+void recoverDisplayAfterSoftReset() {
+  Serial.printf("[boot] reset reason %d\n",
+                static_cast<int>(esp_reset_reason()));
+
+  prepareSharedSpiBus();
+  enableBacklight(128);
+  reinitPanelOverLiveBus();
+
+  // One retry with a longer settle — battery RST is the flaky case.
+  const bool likely_battery_only =
+      M5.Power.isCharging() != m5::Power_Class::is_charging;
+  if (likely_battery_only) {
+    Serial.println("[boot] battery path: retrying display recovery");
+    delay(100);
+    prepareSharedSpiBus();
+    reinitPanelOverLiveBus();
+  }
 
   Serial.println("[boot] display recovery done");
 }
@@ -152,6 +180,7 @@ void recoverDisplayAfterSoftReset() {
 
 void setup() {
   auto cfg = M5.config();
+  cfg.output_power = true;
   M5.begin(cfg);
   Serial.begin(115200);
   delay(200);
