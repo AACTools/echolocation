@@ -4,6 +4,7 @@
 #include "computer_output.h"
 #include "device_settings_store.h"
 #include "key_audio.h"
+#include "key_config.h"
 #include "lvgl_port.h"
 #include "speaker_detect.h"
 #include "usb_keyboard.h"
@@ -33,6 +34,7 @@ enum class Screen {
 #endif
   kVolume,
   kHoldDuration,
+  kKeyOverrides,
   kFactoryReset,
 };
 
@@ -40,6 +42,7 @@ const lv_color_t kBgColor = lv_color_hex(0x1A1A1A);
 const lv_color_t kHeaderColor = lv_color_hex(0x2A2A2A);
 const lv_color_t kAccentColor = lv_color_hex(0x0066FF);
 const lv_color_t kConnectedColor = lv_color_hex(0x44DD66);
+const lv_color_t kOverrideBadgeColor = lv_color_hex(0xFFB020);
 
 constexpr uint32_t kMinHoldDurationMs = 100;
 constexpr uint32_t kMaxHoldDurationMs = 3000;
@@ -50,6 +53,7 @@ constexpr int kHeaderHeight = 40;
 constexpr int kKeyboardRowHeight = 44;
 constexpr int kKeyboardSectionGap = 8;
 constexpr size_t kMaxBluetoothKeyboardSlots = 8;
+constexpr size_t kMaxKeyOverrideSlots = 64;
 constexpr int kKeyboardBaseActionButtonY = 116;
 constexpr int kSearchKeyboardListY = kHeaderHeight + 20 + 4;
 
@@ -69,12 +73,16 @@ lv_obj_t* screen_debug = nullptr;
 #endif
 lv_obj_t* screen_volume = nullptr;
 lv_obj_t* screen_hold_duration = nullptr;
+lv_obj_t* screen_key_overrides = nullptr;
 lv_obj_t* screen_factory_reset = nullptr;
 lv_obj_t* connection_flow_label = nullptr;
 lv_obj_t* speaker_output_label = nullptr;
 lv_obj_t* speaker_error_label = nullptr;
 lv_obj_t* pressed_key_box = nullptr;
 lv_obj_t* pressed_key_label = nullptr;
+lv_obj_t* pressed_key_override_label = nullptr;
+lv_obj_t* key_overrides_status_label = nullptr;
+lv_obj_t* key_overrides_list = nullptr;
 #ifdef ECHOLOCATION_DEBUG
 lv_obj_t* audio_debug_label = nullptr;
 #endif
@@ -155,6 +163,15 @@ void pauseSearchKeyboardStatus();
 void resetSearchKeyboardDeviceButtons();
 void refreshSearchKeyboardDeviceList();
 void refreshPairedKeyboardDeviceList();
+void refreshKeyOverridesList();
+const char* keyConfigStatusText();
+
+struct KeyOverrideRowUi {
+  lv_obj_t* row = nullptr;
+  lv_obj_t* label = nullptr;
+};
+
+KeyOverrideRowUi key_override_rows[kMaxKeyOverrideSlots];
 
 void registerBatteryLabel(lv_obj_t* label) {
   if (battery_label_count < kMaxBatteryLabels) {
@@ -271,6 +288,9 @@ void showScreen(Screen screen) {
       break;
     case Screen::kHoldDuration:
       target = screen_hold_duration;
+      break;
+    case Screen::kKeyOverrides:
+      target = screen_key_overrides;
       break;
     case Screen::kFactoryReset:
       target = screen_factory_reset;
@@ -458,7 +478,7 @@ void refreshAudioDebugLabel() {
   KeyAudioDebugInfo info;
   keyAudioGetDebugInfo(&info);
 
-  char text[320];
+  char text[420];
   snprintf(text, sizeof(text),
            "SD card: %s\n"
            "/audio folder: %s\n\n"
@@ -469,19 +489,21 @@ void refreshAudioDebugLabel() {
            "  space.wav: %s\n"
            "  enter.wav: %s\n\n"
            "Found: %d/5\n"
-           "Cached: %d",
+           "Cached: %d\n\n"
+           "keys.txt: %s",
            info.sd_mounted ? "yes" : "no",
            info.audio_dir_exists ? "yes" : "no",
            info.probe_a_wav ? "yes" : "no", info.probe_b_wav ? "yes" : "no",
            info.probe_c_wav ? "yes" : "no", info.probe_space_wav ? "yes" : "no",
            info.probe_enter_wav ? "yes" : "no", info.probe_files_found,
-           info.cached_wav_count);
+           info.cached_wav_count, keyConfigStatusText());
   lv_label_set_text(audio_debug_label, text);
 }
 
 void onRefreshAudioDebugClicked(lv_event_t* event) {
   (void)event;
   keyAudioRefresh();
+  keyConfigLoad();
   refreshAudioDebugLabel();
 }
 
@@ -1025,6 +1047,85 @@ void onHoldDurationMenuClicked(lv_event_t* event) {
   showScreen(Screen::kHoldDuration);
 }
 
+const char* keyConfigStatusText() {
+  switch (keyConfigGetLoadStatus()) {
+    case KeyConfigLoadStatus::kOk:
+      if (keyConfigLoadedEntryCount() == 0) {
+        return "no overrides configured";
+      }
+      break;
+    case KeyConfigLoadStatus::kNoSd:
+      return "SD card not available";
+    case KeyConfigLoadStatus::kFileMissing:
+      return "not found (defaults)";
+    case KeyConfigLoadStatus::kParseError:
+      return "read error (partial load)";
+  }
+
+  static char text[48];
+  snprintf(text, sizeof(text), "%d overrides loaded",
+           keyConfigLoadedEntryCount());
+  return text;
+}
+
+void refreshKeyOverridesList() {
+  if (key_overrides_status_label != nullptr) {
+    char text[64];
+    switch (keyConfigGetLoadStatus()) {
+      case KeyConfigLoadStatus::kOk:
+        if (keyConfigLoadedEntryCount() == 0) {
+          snprintf(text, sizeof(text), "No overrides configured");
+        } else {
+          snprintf(text, sizeof(text), "%d overrides loaded from SD card",
+                   keyConfigLoadedEntryCount());
+        }
+        break;
+      case KeyConfigLoadStatus::kNoSd:
+        snprintf(text, sizeof(text), "SD card not available");
+        break;
+      case KeyConfigLoadStatus::kFileMissing:
+        snprintf(text, sizeof(text), "No overrides configured");
+        break;
+      case KeyConfigLoadStatus::kParseError:
+        snprintf(text, sizeof(text), "Could not read keys.txt");
+        break;
+    }
+    lv_label_set_text(key_overrides_status_label, text);
+  }
+
+  if (key_overrides_list == nullptr) {
+    return;
+  }
+
+  KeyConfigEntry entries[kMaxKeyOverrideSlots];
+  const size_t count = keyConfigGetEntries(entries, kMaxKeyOverrideSlots);
+
+  for (size_t i = 0; i < kMaxKeyOverrideSlots; ++i) {
+    KeyOverrideRowUi& row_ui = key_override_rows[i];
+    if (row_ui.row == nullptr) {
+      continue;
+    }
+
+    if (i < count) {
+      char line[64];
+      keyConfigFormatEntrySummary(entries[i], line, sizeof(line));
+      if (row_ui.label != nullptr) {
+        lv_label_set_text(row_ui.label, line);
+      }
+      lv_obj_remove_flag(row_ui.row, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(row_ui.row, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+}
+
+void onKeyOverridesMenuClicked(lv_event_t* event) {
+  (void)event;
+  keyConfigLoad();
+  refreshKeyOverridesList();
+  showScreen(Screen::kKeyOverrides);
+}
+
 void onHoldDurationSliderChanged(lv_event_t* event) {
   lv_obj_t* slider = lv_event_get_target_obj(event);
   hold_duration_ms = static_cast<uint32_t>(lv_slider_get_value(slider));
@@ -1181,6 +1282,9 @@ void buildScreens() {
   lv_obj_set_style_pad_hor(pressed_key_box, 16, 0);
   lv_obj_set_style_pad_ver(pressed_key_box, 8, 0);
   lv_obj_set_style_shadow_width(pressed_key_box, 0, 0);
+  lv_obj_set_flex_flow(pressed_key_box, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(pressed_key_box, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
   lv_obj_align(pressed_key_box, LV_ALIGN_CENTER, 0, 0);
   lv_obj_add_flag(pressed_key_box, LV_OBJ_FLAG_HIDDEN);
 
@@ -1188,7 +1292,12 @@ void buildScreens() {
   lv_label_set_text(pressed_key_label, "");
   lv_obj_set_style_text_font(pressed_key_label, &lv_font_montserrat_48, 0);
   lv_obj_set_style_text_color(pressed_key_label, lv_color_white(), 0);
-  lv_obj_center(pressed_key_label);
+
+  pressed_key_override_label = lv_label_create(pressed_key_box);
+  lv_label_set_text(pressed_key_override_label, "");
+  lv_obj_set_style_text_font(pressed_key_override_label, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(pressed_key_override_label, kOverrideBadgeColor, 0);
+  lv_obj_add_flag(pressed_key_override_label, LV_OBJ_FLAG_HIDDEN);
 
   speaker_output_label = lv_label_create(screen_main);
   lv_label_set_text(speaker_output_label, LV_SYMBOL_VOLUME_MAX);
@@ -1227,6 +1336,7 @@ void buildScreens() {
 #endif
   createMenuListButton(settings_menu_list, "Volume", onVolumeMenuClicked);
   createMenuListButton(settings_menu_list, "Hold Duration", onHoldDurationMenuClicked);
+  createMenuListButton(settings_menu_list, "Key Overrides", onKeyOverridesMenuClicked);
   createMenuListButton(settings_menu_list, "Factory Defaults", onFactoryResetMenuClicked);
 
   screen_bluetooth = lv_obj_create(nullptr);
@@ -1537,6 +1647,43 @@ void buildScreens() {
   lv_obj_add_event_cb(hold_duration_slider, onHoldDurationSliderChanged,
                       LV_EVENT_VALUE_CHANGED, nullptr);
   updateHoldDurationLabel();
+
+  screen_key_overrides = lv_obj_create(nullptr);
+  styleScreen(screen_key_overrides);
+  createHeader(screen_key_overrides, "Key Overrides", Screen::kSettings);
+
+  key_overrides_status_label = lv_label_create(screen_key_overrides);
+  lv_label_set_text(key_overrides_status_label, "Checking...");
+  lv_obj_set_style_text_font(key_overrides_status_label, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(key_overrides_status_label, kOverrideBadgeColor, 0);
+  lv_obj_set_width(key_overrides_status_label, 296);
+  lv_label_set_long_mode(key_overrides_status_label, LV_LABEL_LONG_WRAP);
+  lv_obj_align(key_overrides_status_label, LV_ALIGN_TOP_LEFT, 12, 52);
+
+  key_overrides_list = createScrollableList(screen_key_overrides, 84, 156);
+  for (size_t i = 0; i < kMaxKeyOverrideSlots; ++i) {
+    lv_obj_t* row = lv_obj_create(key_overrides_list);
+    lv_obj_set_width(row, LV_PCT(100));
+    lv_obj_set_height(row, 36);
+    lv_obj_set_style_radius(row, 8, 0);
+    lv_obj_set_style_bg_color(row, lv_color_hex(0x2A2A2A), 0);
+    lv_obj_set_style_border_width(row, 0, 0);
+    lv_obj_set_style_pad_hor(row, 12, 0);
+    lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
+
+    lv_obj_t* label = lv_label_create(row);
+    lv_label_set_text(label, "");
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(label, lv_color_white(), 0);
+    lv_obj_set_width(label, 260);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+    lv_obj_align(label, LV_ALIGN_LEFT_MID, 0, 0);
+
+    key_override_rows[i].row = row;
+    key_override_rows[i].label = label;
+  }
+  refreshKeyOverridesList();
 }
 
 }  // namespace
@@ -1596,16 +1743,31 @@ void uiSetKeyboardConnected(bool connected) {
   refreshConnectionFlowIndicator();
 }
 
-void uiSetPressedKey(const char* label) {
+void uiSetPressedKey(const char* label, const KeyBehavior* behavior) {
   if (pressed_key_label == nullptr || pressed_key_box == nullptr) {
     return;
   }
   if (label == nullptr || label[0] == '\0') {
     lv_label_set_text(pressed_key_label, "");
+    if (pressed_key_override_label != nullptr) {
+      lv_label_set_text(pressed_key_override_label, "");
+      lv_obj_add_flag(pressed_key_override_label, LV_OBJ_FLAG_HIDDEN);
+    }
     lv_obj_add_flag(pressed_key_box, LV_OBJ_FLAG_HIDDEN);
     return;
   }
   lv_label_set_text(pressed_key_label, label);
+  if (pressed_key_override_label != nullptr) {
+    if (behavior != nullptr && keyConfigHasOverrides(*behavior)) {
+      char summary[48];
+      keyConfigFormatOverrideSummary(*behavior, summary, sizeof(summary));
+      lv_label_set_text(pressed_key_override_label, summary);
+      lv_obj_remove_flag(pressed_key_override_label, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_label_set_text(pressed_key_override_label, "");
+      lv_obj_add_flag(pressed_key_override_label, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
   lv_obj_remove_flag(pressed_key_box, LV_OBJ_FLAG_HIDDEN);
 }
 

@@ -46,7 +46,12 @@ On the CoreS3 screen it should show the current key that is being pressed. It sh
   - Configure Keyboard Connection
   - Configure Computer Connection
 - Hold duration
+- Key overrides (lists per-key settings loaded from the SD card)
 - Factory reset
+
+When a key with override settings is pressed on the main screen, the UI shows which settings apply (for example `echo off` or `echo off, hold off`).
+
+Per-key echo and hold behaviour can also be configured in `/config/keys.txt` on the microSD card. Keys not listed use the default behaviour (speak on press, send to computer after hold duration). Setting `hold=off` relays key down/up to the connected computer immediately.
 
 The screen should also report any errors that occur in a clear and easy to understand way.
 

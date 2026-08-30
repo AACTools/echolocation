@@ -364,6 +364,142 @@ bool lookupPhysicalKey(uint8_t usage, KeyLabel* out) {
   return true;
 }
 
+bool equalsTokenIgnoreCase(const char* a, const char* b) {
+  if (a == nullptr || b == nullptr) {
+    return false;
+  }
+  while (*a != '\0' && *b != '\0') {
+    char ca = *a;
+    char cb = *b;
+    if (ca >= 'A' && ca <= 'Z') {
+      ca = static_cast<char>(ca - 'A' + 'a');
+    }
+    if (cb >= 'A' && cb <= 'Z') {
+      cb = static_cast<char>(cb - 'A' + 'a');
+    }
+    if (ca != cb) {
+      return false;
+    }
+    ++a;
+    ++b;
+  }
+  return *a == '\0' && *b == '\0';
+}
+
+bool resolveTokenToHid(const char* token, uint8_t* out_key, uint8_t* out_mod_bit) {
+  if (token == nullptr || token[0] == '\0' || out_key == nullptr ||
+      out_mod_bit == nullptr) {
+    return false;
+  }
+
+  *out_key = 0;
+  *out_mod_bit = 0;
+
+  if (strlen(token) == 1) {
+    const char c = token[0];
+    if (c >= 'a' && c <= 'z') {
+      *out_key = static_cast<uint8_t>(0x04 + (c - 'a'));
+      return true;
+    }
+    if (c >= '1' && c <= '9') {
+      *out_key = static_cast<uint8_t>(0x1E + (c - '1'));
+      return true;
+    }
+    if (c == '0') {
+      *out_key = 0x27;
+      return true;
+    }
+  }
+
+  for (size_t i = 0; i < sizeof(kModifiers) / sizeof(kModifiers[0]); ++i) {
+    if (equalsTokenIgnoreCase(token, kModifiers[i].token)) {
+      *out_mod_bit = kModifiers[i].usage;
+      return true;
+    }
+  }
+
+  for (size_t i = 0; i < sizeof(kNamedKeys) / sizeof(kNamedKeys[0]); ++i) {
+    if (equalsTokenIgnoreCase(token, kNamedKeys[i].token)) {
+      *out_key = kNamedKeys[i].usage;
+      return true;
+    }
+  }
+
+  for (size_t i = 0; i < sizeof(kPhysicalKeys) / sizeof(kPhysicalKeys[0]); ++i) {
+    if (equalsTokenIgnoreCase(token, kPhysicalKeys[i].suffix)) {
+      *out_key = kPhysicalKeys[i].usage;
+      return true;
+    }
+
+    char physical_token[24];
+    snprintf(physical_token, sizeof(physical_token), "key_%s",
+             kPhysicalKeys[i].suffix);
+    if (equalsTokenIgnoreCase(token, physical_token)) {
+      *out_key = kPhysicalKeys[i].usage;
+      return true;
+    }
+  }
+
+  if (equalsTokenIgnoreCase(token, "minus")) {
+    *out_key = 0x2D;
+    return true;
+  }
+  if (equalsTokenIgnoreCase(token, "equals")) {
+    *out_key = 0x2E;
+    return true;
+  }
+  if (equalsTokenIgnoreCase(token, "left_bracket")) {
+    *out_key = 0x2F;
+    return true;
+  }
+  if (equalsTokenIgnoreCase(token, "right_bracket")) {
+    *out_key = 0x30;
+    return true;
+  }
+  if (equalsTokenIgnoreCase(token, "backslash")) {
+    *out_key = 0x31;
+    return true;
+  }
+  if (equalsTokenIgnoreCase(token, "hash")) {
+    *out_key = 0x32;
+    return true;
+  }
+  if (equalsTokenIgnoreCase(token, "single_quote")) {
+    *out_key = 0x33;
+    return true;
+  }
+  if (equalsTokenIgnoreCase(token, "semicolon")) {
+    *out_key = 0x34;
+    return true;
+  }
+  if (equalsTokenIgnoreCase(token, "slash")) {
+    *out_key = 0x35;
+    return true;
+  }
+  if (equalsTokenIgnoreCase(token, "backtick")) {
+    *out_key = 0x36;
+    return true;
+  }
+  if (equalsTokenIgnoreCase(token, "comma")) {
+    *out_key = 0x37;
+    return true;
+  }
+  if (equalsTokenIgnoreCase(token, "period")) {
+    *out_key = 0x38;
+    return true;
+  }
+
+  if (strncmp(token, "key_0x", 6) == 0 || strncmp(token, "KEY_0X", 6) == 0) {
+    unsigned int usage = 0;
+    if (sscanf(token + 6, "%x", &usage) == 1 && usage <= 0xFF) {
+      *out_key = static_cast<uint8_t>(usage);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 KeyboardDetectedLayout effectiveLayout() { return detected_layout; }
 
 bool layoutCharMapping(uint8_t key, bool shift, KeyboardDetectedLayout layout,
@@ -441,4 +577,9 @@ bool keyboardLayoutResolveKey(uint8_t mod, uint8_t key, KeyLabel* out) {
   }
 
   return lookupPhysicalKey(key, out);
+}
+
+bool keyboardLayoutResolveToken(const char* token, uint8_t* out_key,
+                                uint8_t* out_mod_bit) {
+  return resolveTokenToHid(token, out_key, out_mod_bit);
 }

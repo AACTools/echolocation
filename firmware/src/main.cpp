@@ -9,6 +9,7 @@
 #include "lvgl_port.h"
 #include "speaker_detect.h"
 #include "speaker_route.h"
+#include "key_config.h"
 #include "ui.h"
 #include "usb_keyboard.h"
 
@@ -216,6 +217,9 @@ void setup() {
   uiSetLoadingStatus("Loading audio...");
   pumpLoadingUi();
   keyAudioRefresh();
+  pumpLoadingUi();
+
+  keyConfigLoad();
   pumpLoadingUi();
 
   uiSetLoadingStatus("Starting speakers...");
