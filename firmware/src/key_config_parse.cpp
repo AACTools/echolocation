@@ -184,5 +184,5 @@ void keyConfigFormatEntrySummary(const KeyConfigEntry& entry, char* out,
 
   char summary[48];
   keyConfigFormatOverrideSummary(entry.behavior, summary, sizeof(summary));
-  snprintf(out, out_len, "%s — %s", entry.name, summary);
+  snprintf(out, out_len, "%s - %s", entry.name, summary);
 }

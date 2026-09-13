@@ -88,6 +88,17 @@ void test_override_summary_echo_only(void) {
   TEST_ASSERT_EQUAL_STRING("echo off", summary);
 }
 
+void test_entry_summary_uses_ascii_dash(void) {
+  KeyConfigEntry entry;
+  strncpy(entry.name, "arrow_down", sizeof(entry.name) - 1);
+  entry.name[sizeof(entry.name) - 1] = '\0';
+  entry.behavior.echo_enabled = false;
+  entry.behavior.hold_enabled = false;
+  char line[64];
+  keyConfigFormatEntrySummary(entry, line, sizeof(line));
+  TEST_ASSERT_EQUAL_STRING("arrow_down - echo off, hold off", line);
+}
+
 int main(int argc, char** argv) {
   (void)argc;
   (void)argv;
@@ -101,5 +112,6 @@ int main(int argc, char** argv) {
   RUN_TEST(test_token_left_shift_modifier);
   RUN_TEST(test_override_summary_both_off);
   RUN_TEST(test_override_summary_echo_only);
+  RUN_TEST(test_entry_summary_uses_ascii_dash);
   return UNITY_END();
 }
