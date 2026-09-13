@@ -25,7 +25,7 @@ If upload fails, long-press **RST** until the screen goes blank and try again. S
 
 ### 3. Load speech onto the microSD card
 
-Generate WAV files with Piper TTS — see [scripts/generate-tts/README.md](scripts/generate-tts/README.md). Copy the `audio` folder to the root of a FAT32 microSD card, insert it into the CoreS3, and reboot.
+Generate WAV files with Piper TTS — see [scripts/generate-tts/README.md](scripts/generate-tts/README.md). Copy the `audio` folder to the root of a FAT32 microSD card. Optionally copy [assets/config/keys.txt](assets/config/keys.txt) to `/config/keys.txt` on the card for per-key echo and hold overrides. Insert the card into the CoreS3 and reboot.
 
 ## Releases
 
@@ -36,7 +36,7 @@ Pre-built firmware is published on [GitHub Releases](https://github.com/AACTools
 ```
 firmware/           CoreS3 firmware (PlatformIO / Arduino)
 scripts/generate-tts  TTS audio generation for the microSD card
-assets/             Audio manifest for speech generation
+assets/             Audio manifest and example SD card config
 spec.md             Product specification (source of truth)
 test-plan.md        Manual test checklist
 ```

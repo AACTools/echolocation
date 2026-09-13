@@ -39,7 +39,7 @@ The settings page should also have a 'debug' button that shows a page with basic
 
 ### Screen
 
-On the CoreS3 screen it should show the current key that is being pressed. It should also have a battery level indicator. There should also be a settings button that opens a menu with the following configurable options:
+On the CoreS3 screen it should show the last key that was pressed. The key appears immediately on press and stays on screen after release until another key is pressed. It should also have a battery level indicator. There should also be a settings button that opens a menu with the following configurable options:
 
 - Volume
 - Bluetooth
@@ -49,7 +49,9 @@ On the CoreS3 screen it should show the current key that is being pressed. It sh
 - Key overrides (lists per-key settings loaded from the SD card)
 - Factory reset
 
-When a key with override settings is pressed on the main screen, the UI shows which settings apply (for example `echo off` or `echo off, hold off`).
+When a key with override settings is pressed on the main screen, the UI shows which settings apply below the key (for example `echo off` or `echo off, hold off`). Those labels stay until another key is pressed.
+
+When a hold-to-send key is sent to the computer, a green tick appears to the right of the key and remains until another key is pressed.
 
 Per-key echo and hold behaviour can also be configured in `/config/keys.txt` on the microSD card. Keys not listed use the default behaviour (speak on press, send to computer after hold duration). Setting `hold=off` relays key down/up to the connected computer immediately.
 

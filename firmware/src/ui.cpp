@@ -80,6 +80,7 @@ lv_obj_t* speaker_output_label = nullptr;
 lv_obj_t* speaker_error_label = nullptr;
 lv_obj_t* pressed_key_box = nullptr;
 lv_obj_t* pressed_key_label = nullptr;
+lv_obj_t* pressed_key_sent_icon = nullptr;
 lv_obj_t* pressed_key_override_label = nullptr;
 lv_obj_t* key_overrides_status_label = nullptr;
 lv_obj_t* key_overrides_list = nullptr;
@@ -164,6 +165,8 @@ void resetSearchKeyboardDeviceButtons();
 void refreshSearchKeyboardDeviceList();
 void refreshPairedKeyboardDeviceList();
 void refreshKeyOverridesList();
+void layoutPressedKeySentIcon();
+void setPressedKeySentIconVisible(bool visible);
 const char* keyConfigStatusText();
 
 struct KeyOverrideRowUi {
@@ -1047,6 +1050,30 @@ void onHoldDurationMenuClicked(lv_event_t* event) {
   showScreen(Screen::kHoldDuration);
 }
 
+void layoutPressedKeySentIcon() {
+  if (pressed_key_sent_icon == nullptr || pressed_key_label == nullptr) {
+    return;
+  }
+  if (pressed_key_box != nullptr) {
+    lv_obj_update_layout(pressed_key_box);
+  }
+  lv_obj_update_layout(pressed_key_label);
+  lv_obj_align_to(pressed_key_sent_icon, pressed_key_label, LV_ALIGN_OUT_RIGHT_MID,
+                  8, 0);
+}
+
+void setPressedKeySentIconVisible(bool visible) {
+  if (pressed_key_sent_icon == nullptr) {
+    return;
+  }
+  if (visible) {
+    layoutPressedKeySentIcon();
+    lv_obj_remove_flag(pressed_key_sent_icon, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_add_flag(pressed_key_sent_icon, LV_OBJ_FLAG_HIDDEN);
+  }
+}
+
 const char* keyConfigStatusText() {
   switch (keyConfigGetLoadStatus()) {
     case KeyConfigLoadStatus::kOk:
@@ -1276,22 +1303,29 @@ void buildScreens() {
   pressed_key_box = lv_obj_create(screen_main);
   lv_obj_set_size(pressed_key_box, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_style_bg_opa(pressed_key_box, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_color(pressed_key_box, kAccentColor, 0);
   lv_obj_set_style_border_width(pressed_key_box, 0, 0);
-  lv_obj_set_style_radius(pressed_key_box, 8, 0);
-  lv_obj_set_style_pad_hor(pressed_key_box, 16, 0);
-  lv_obj_set_style_pad_ver(pressed_key_box, 8, 0);
+  lv_obj_set_style_pad_hor(pressed_key_box, 0, 0);
+  lv_obj_set_style_pad_ver(pressed_key_box, 0, 0);
   lv_obj_set_style_shadow_width(pressed_key_box, 0, 0);
+  lv_obj_set_style_radius(pressed_key_box, 0, 0);
+  lv_obj_set_style_pad_row(pressed_key_box, 4, 0);
   lv_obj_set_flex_flow(pressed_key_box, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(pressed_key_box, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
   lv_obj_align(pressed_key_box, LV_ALIGN_CENTER, 0, 0);
   lv_obj_add_flag(pressed_key_box, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_remove_flag(pressed_key_box, LV_OBJ_FLAG_SCROLLABLE);
 
   pressed_key_label = lv_label_create(pressed_key_box);
   lv_label_set_text(pressed_key_label, "");
   lv_obj_set_style_text_font(pressed_key_label, &lv_font_montserrat_48, 0);
   lv_obj_set_style_text_color(pressed_key_label, lv_color_white(), 0);
+
+  pressed_key_sent_icon = lv_label_create(screen_main);
+  lv_label_set_text(pressed_key_sent_icon, LV_SYMBOL_OK);
+  lv_obj_set_style_text_font(pressed_key_sent_icon, &lv_font_montserrat_48, 0);
+  lv_obj_set_style_text_color(pressed_key_sent_icon, kConnectedColor, 0);
+  lv_obj_add_flag(pressed_key_sent_icon, LV_OBJ_FLAG_HIDDEN);
 
   pressed_key_override_label = lv_label_create(pressed_key_box);
   lv_label_set_text(pressed_key_override_label, "");
@@ -1747,6 +1781,7 @@ void uiSetPressedKey(const char* label, const KeyBehavior* behavior) {
   if (pressed_key_label == nullptr || pressed_key_box == nullptr) {
     return;
   }
+  setPressedKeySentIconVisible(false);
   if (label == nullptr || label[0] == '\0') {
     lv_label_set_text(pressed_key_label, "");
     if (pressed_key_override_label != nullptr) {
@@ -1771,12 +1806,7 @@ void uiSetPressedKey(const char* label, const KeyBehavior* behavior) {
   lv_obj_remove_flag(pressed_key_box, LV_OBJ_FLAG_HIDDEN);
 }
 
-void uiSetKeyBoxOutline(bool show) {
-  if (pressed_key_box == nullptr) {
-    return;
-  }
-  lv_obj_set_style_border_width(pressed_key_box, show ? 3 : 0, 0);
-}
+void uiSetKeySent(bool sent) { setPressedKeySentIconVisible(sent); }
 
 void uiSetVolume(uint8_t volume) {
   keyAudioSetVolume(volume);

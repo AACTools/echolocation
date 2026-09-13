@@ -11,7 +11,7 @@ void uiFinishLoading();
 void uiPump();
 void uiSetKeyboardConnected(bool connected);
 void uiSetPressedKey(const char* label, const KeyBehavior* behavior = nullptr);
-void uiSetKeyBoxOutline(bool show);
+void uiSetKeySent(bool sent);
 void uiSetVolume(uint8_t volume);
 void uiSetBattery(int percent, bool charging);
 uint32_t uiGetHoldDurationMs();

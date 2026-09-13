@@ -50,7 +50,7 @@ pio device monitor -b 115200
 
 Key speech is read from WAV files on a FAT32 microSD card at `/audio/*.wav`.
 
-Optional per-key behaviour overrides live at `/config/keys.txt`:
+Optional per-key behaviour overrides live at `/config/keys.txt`. Copy the example at [assets/config/keys.txt](../assets/config/keys.txt) onto the card:
 
 ```txt
 # echo: on|off  (default on)
@@ -62,7 +62,7 @@ left_shift echo=off hold=off
 a echo=off hold=on
 ```
 
-Key names match speech file tokens (`space`, `a`, `left_shift`, `arrow_up`, etc.). Unlisted keys keep the default behaviour. View loaded overrides under Settings → **Key Overrides**; active overrides also appear as a badge on the main screen while the key is held.
+Key names match speech file tokens (`space`, `a`, `left_shift`, `arrow_up`, etc.). Unlisted keys keep the default behaviour. View loaded overrides under Settings → **Key Overrides**; active overrides appear below the key on the main screen. Hold-to-send keys show a green tick to the right of the key after they are sent. Both stay until another key is pressed.
 
 Generate speech files with Piper TTS — see [scripts/generate-tts/README.md](../scripts/generate-tts/README.md). Run `npm run build-manifest` first, then `npm run generate`. Copy the `audio` folder to the root of the card, add `config/keys.txt` if needed, insert the card into the CoreS3 SD slot, and reboot.
 

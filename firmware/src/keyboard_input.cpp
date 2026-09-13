@@ -15,7 +15,6 @@ uint8_t displayed_key = 0;
 uint8_t displayed_mod = 0;
 uint8_t held_key = 0;
 uint8_t held_mod = 0;
-bool box_shown = false;
 bool key_sent_to_computer = false;
 uint8_t current_report[8] = {};
 uint8_t report_snapshot[8] = {};
@@ -70,8 +69,6 @@ void noteReportChanged(const uint8_t report[8]) {
   }
   memcpy(report_snapshot, report, 8);
   last_report_change_ms = millis();
-  box_shown = false;
-  uiSetKeyBoxOutline(false);
 }
 
 const KeyBehavior* behaviorForUi(const KeyBehavior& behavior) {
@@ -167,23 +164,13 @@ void keyboardInputOnKeyDown(uint8_t mod, uint8_t key) {
   }
 
   const KeyBehavior behavior = keyConfigForKey(key);
-  const bool is_new_key = (key != displayed_key || mod != displayed_mod);
-  if (is_new_key) {
-    displayed_key = key;
-    displayed_mod = mod;
-    box_shown = false;
-    uiSetKeyBoxOutline(false);
-    showPressedKey(label.display, behavior);
-  }
+  displayed_key = key;
+  displayed_mod = mod;
+  showPressedKey(label.display, behavior);
 
-  if (behavior.hold_enabled &&
-      (held_key != key || held_mod != mod)) {
+  if (behavior.hold_enabled && (held_key != key || held_mod != mod)) {
     held_key = key;
     held_mod = mod;
-    if (!is_new_key) {
-      box_shown = false;
-      uiSetKeyBoxOutline(false);
-    }
   }
 
   if (behavior.echo_enabled) {
@@ -243,10 +230,7 @@ void keyboardInputProcessBootReport(uint8_t* prev_state, const uint8_t* report,
     held_mod = 0;
     displayed_key = 0;
     displayed_mod = 0;
-    box_shown = false;
     key_sent_to_computer = false;
-    uiSetKeyBoxOutline(false);
-    uiSetPressedKey(nullptr, nullptr);
   }
 }
 
@@ -264,15 +248,12 @@ void keyboardInputTick() {
     return;
   }
 
-  if (!box_shown) {
-    box_shown = true;
-    uiSetKeyBoxOutline(true);
-  }
   if (key_sent_to_computer) {
     return;
   }
 
   key_sent_to_computer = true;
+  uiSetKeySent(true);
   computerOutputSendKey(held_mod, held_key);
   syncPassthroughReport();
 }
