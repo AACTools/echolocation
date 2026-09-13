@@ -1,0 +1,19 @@
+# echolocation per-key overrides
+# Copy this file to the microSD card as /config/keys.txt
+#
+# Format: <key> echo=<on|off> hold=<on|off>
+# Key names match speech tokens: space, a, left_shift, arrow_up, enter, ...
+# To find a name: Settings → Key Overrides → Show key name, then press the key.
+#
+# Defaults (omit a key to keep these):
+#   echo=on   speak the key when pressed
+#   hold=on   send to the computer only after the hold duration
+#
+# hold=off relays key down/up to the computer immediately.
+# Lines starting with # are comments. Unlisted keys keep the defaults.
+
+# Navigation and modifiers: send immediately, skip speech
+arrow_up echo=off hold=off
+arrow_down echo=on hold=off
+arrow_left echo=off hold=on
+arrow_right echo=on hold=on

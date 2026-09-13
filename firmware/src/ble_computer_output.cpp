@@ -230,6 +230,24 @@ void bleComputerOutputSendKey(uint8_t mod, uint8_t key) {
   releaseAllKeys();
 }
 
+void bleComputerOutputSendBootReport(const uint8_t report[8]) {
+  if (!host_connected || ble_input_report == nullptr || report == nullptr) {
+    return;
+  }
+
+  uint8_t out[sizeof(KeyReport)] = {};
+  out[0] = report[0];
+  uint8_t slot = 2;
+  for (uint8_t i = 2; i < 8 && slot < sizeof(KeyReport); ++i) {
+    const uint8_t key = report[i];
+    if (key != 0 && key != 1) {
+      out[slot++] = key;
+    }
+  }
+  ble_input_report->setValue(out, sizeof(out));
+  ble_input_report->notify();
+}
+
 bool bleComputerOutputIsConnected() {
   if (!stack_ready) {
     return false;

@@ -2,6 +2,7 @@
 
 #include "computer_output.h"
 #include "key_audio.h"
+#include "key_config.h"
 #include "keyboard_layout.h"
 #include "ui.h"
 
@@ -14,11 +15,11 @@ uint8_t displayed_key = 0;
 uint8_t displayed_mod = 0;
 uint8_t held_key = 0;
 uint8_t held_mod = 0;
-bool box_shown = false;
 bool key_sent_to_computer = false;
 uint8_t current_report[8] = {};
 uint8_t report_snapshot[8] = {};
 uint8_t prev_modifiers = 0;
+uint8_t last_passthrough_report[8] = {};
 uint32_t last_report_change_ms = 0;
 
 void normalizeBootReport(const uint8_t* report, size_t len, uint8_t normalized[8]) {
@@ -68,13 +69,55 @@ void noteReportChanged(const uint8_t report[8]) {
   }
   memcpy(report_snapshot, report, 8);
   last_report_change_ms = millis();
-  box_shown = false;
-  uiSetKeyBoxOutline(false);
 }
 
-void announceLabel(const KeyLabel& label) {
-  keyAudioPlayForToken(label.speech_token);
-  uiSetPressedKey(label.display);
+const KeyBehavior* behaviorForUi(const KeyBehavior& behavior) {
+  return keyConfigHasOverrides(behavior) ? &behavior : nullptr;
+}
+
+void showPressedKey(const KeyLabel& label, const KeyBehavior& behavior, uint8_t key,
+                    uint8_t mod_bit) {
+  char config_name[24];
+  if (!keyboardLayoutConfigName(key, mod_bit, config_name, sizeof(config_name))) {
+    config_name[0] = '\0';
+  }
+  uiSetPressedKey(label.display, behaviorForUi(behavior), config_name);
+}
+
+void buildPassthroughReport(const uint8_t input[8], uint8_t output[8]) {
+  memset(output, 0, 8);
+
+  static const uint8_t kModifierBits[] = {0x01, 0x02, 0x04, 0x08,
+                                          0x10, 0x20, 0x40, 0x80};
+  for (size_t i = 0; i < sizeof(kModifierBits); ++i) {
+    const uint8_t bit = kModifierBits[i];
+    if ((input[0] & bit) != 0 && !keyConfigForModifier(bit).hold_enabled) {
+      output[0] |= bit;
+    }
+  }
+
+  uint8_t slot = 2;
+  for (uint8_t i = 2; i < 8 && slot < 8; ++i) {
+    const uint8_t key = input[i];
+    if (key == 0 || key == 1) {
+      continue;
+    }
+    if (!keyConfigForKey(key).hold_enabled) {
+      output[slot++] = key;
+    }
+  }
+}
+
+void syncPassthroughReport() {
+  uint8_t passthrough_report[8] = {};
+  buildPassthroughReport(current_report, passthrough_report);
+
+  if (memcmp(passthrough_report, last_passthrough_report, 8) == 0) {
+    return;
+  }
+
+  memcpy(last_passthrough_report, passthrough_report, 8);
+  computerOutputSendBootReport(passthrough_report);
 }
 
 void keyboardInputOnModifierChange(uint8_t old_mod, uint8_t new_mod) {
@@ -85,7 +128,11 @@ void keyboardInputOnModifierChange(uint8_t old_mod, uint8_t new_mod) {
     if ((old_mod & bit) == 0 && (new_mod & bit) != 0) {
       KeyLabel label;
       if (keyboardLayoutResolveModifier(bit, &label)) {
-        announceLabel(label);
+        const KeyBehavior behavior = keyConfigForModifier(bit);
+        showPressedKey(label, behavior, 0, bit);
+        if (behavior.echo_enabled) {
+          keyAudioPlayForToken(label.speech_token);
+        }
       }
     }
   }
@@ -121,25 +168,19 @@ void keyboardInputOnKeyDown(uint8_t mod, uint8_t key) {
     return;
   }
 
-  const bool is_new_key = (key != displayed_key || mod != displayed_mod);
-  if (is_new_key) {
-    displayed_key = key;
-    displayed_mod = mod;
-    box_shown = false;
-    uiSetKeyBoxOutline(false);
-    uiSetPressedKey(label.display);
-  }
+  const KeyBehavior behavior = keyConfigForKey(key);
+  displayed_key = key;
+  displayed_mod = mod;
+  showPressedKey(label, behavior, key, 0);
 
-  if (held_key != key || held_mod != mod) {
+  if (behavior.hold_enabled && (held_key != key || held_mod != mod)) {
     held_key = key;
     held_mod = mod;
-    if (!is_new_key) {
-      box_shown = false;
-      uiSetKeyBoxOutline(false);
-    }
   }
 
-  keyAudioPlayForToken(label.speech_token);
+  if (behavior.echo_enabled) {
+    keyAudioPlayForToken(label.speech_token);
+  }
 }
 
 void keyboardInputOnKeyUp(uint8_t mod, uint8_t key) {
@@ -187,18 +228,22 @@ void keyboardInputProcessBootReport(uint8_t* prev_state, const uint8_t* report,
   memcpy(prev_state, normalized, 8);
   memcpy(current_report, normalized, 8);
   noteReportChanged(normalized);
+  syncPassthroughReport();
 
   if (activeKeyCountInReport(normalized) == 0) {
     held_key = 0;
     held_mod = 0;
-    box_shown = false;
+    displayed_key = 0;
+    displayed_mod = 0;
     key_sent_to_computer = false;
-    uiSetKeyBoxOutline(false);
   }
 }
 
 void keyboardInputTick() {
   if (held_key == 0 || held_key != displayed_key || held_mod != displayed_mod) {
+    return;
+  }
+  if (!keyConfigForKey(held_key).hold_enabled) {
     return;
   }
   if (!onlyKeyInReport(current_report, held_key)) {
@@ -208,14 +253,12 @@ void keyboardInputTick() {
     return;
   }
 
-  if (!box_shown) {
-    box_shown = true;
-    uiSetKeyBoxOutline(true);
-  }
   if (key_sent_to_computer) {
     return;
   }
 
   key_sent_to_computer = true;
+  uiSetKeySent(true);
   computerOutputSendKey(held_mod, held_key);
+  syncPassthroughReport();
 }

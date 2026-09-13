@@ -30,6 +30,7 @@ pio run -e m5stack-cores3 -t upload    # build and upload
 Other useful commands:
 
 ```bash
+pio test -e native                 # unit tests (layout + key overrides)
 pio device list                        # find the serial port
 pio device monitor -b 115200           # serial logs
 ```
@@ -49,7 +50,21 @@ pio device monitor -b 115200
 
 Key speech is read from WAV files on a FAT32 microSD card at `/audio/*.wav`.
 
-Generate the files with Piper TTS — see [scripts/generate-tts/README.md](../scripts/generate-tts/README.md). Run `npm run build-manifest` first, then `npm run generate`. Copy the `audio` folder to the root of the card, insert it into the CoreS3 SD slot, and reboot.
+Optional per-key behaviour overrides live at `/config/keys.txt`. Copy the example at [assets/config/keys.txt](../assets/config/keys.txt) onto the card:
+
+```txt
+# echo: on|off  (default on)
+# hold: on|off  (default on; off = immediate relay to computer)
+
+space echo=off hold=off
+arrow_up echo=off hold=off
+left_shift echo=off hold=off
+a echo=off hold=on
+```
+
+Key names match speech file tokens (`space`, `a`, `left_shift`, `arrow_up`, etc.). Unlisted keys keep the default behaviour. View loaded overrides under Settings → **Key Overrides**. Turn on **Show key name** there (off by default) and press a key on the main screen to see the token to put in `keys.txt`. Active overrides appear below the key on the main screen. Hold-to-send keys show a green tick to the right of the key after they are sent. Both stay until another key is pressed.
+
+Generate speech files with Piper TTS — see [scripts/generate-tts/README.md](../scripts/generate-tts/README.md). Run `npm run build-manifest` first, then `npm run generate`. Copy the `audio` folder to the root of the card, add `config/keys.txt` if needed, insert the card into the CoreS3 SD slot, and reboot.
 
 ## Flash pre-built binaries
 

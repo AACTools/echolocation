@@ -51,7 +51,7 @@ Mark a cycle **PASS** only if **all** of the following hold:
 | UI status | Main-screen flow indicator and the relevant settings screen match actual connection state within a few seconds |
 | Speech | Each keypress is spoken; audio starts within ~50 ms of key down |
 | Speech interrupt | Pressing a new key while audio is playing stops the current clip and speaks the new key |
-| Screen | Main screen shows the pressed key label; hold outline appears after the configured hold duration |
+| Screen | Main screen shows the pressed key immediately and keeps it after release; overrides appear below the key; green tick appears to the right after a hold-to-send key is sent; Show key name (off by default) shows the keys.txt token above the key |
 | Computer output | Holding a key sends **exactly one** keypress to the connected computer (USB and/or BLE as applicable) |
 | Recovery | After disconnect, the device is ready for the next connect without reboot |
 | Stability | No freeze, watchdog reset, or permanent “Connecting…” / “Connection failed” without cause |
@@ -78,7 +78,7 @@ Mark **FAIL** on first violation; note the cycle number, what was connected, and
 **Variations (5 cycles each after the main 20):**
 
 - Unplug while a key is held and audio is playing.
-- Unplug while the hold outline is visible (key was held past hold duration).
+- Unplug while the green tick is visible (key was held past hold duration).
 - Leave unplugged for 30 s, then reconnect.
 
 ---
@@ -161,7 +161,7 @@ With BLE keyboard connected, enable Settings → Bluetooth → **Computer / Outp
 | 1 | Connect CoreS3 to computer via USB data port (device acts as USB keyboard to host) |
 | 2 | Settings → Bluetooth → Computer Connection — “USB: Connected” |
 | 3 | Main-screen output icon shows USB |
-| 4 | Open a text field on the host; hold `a` on the physical keyboard until outline appears — exactly one `a` appears on the host |
+| 4 | Open a text field on the host; hold `a` on the physical keyboard until the green tick appears — exactly one `a` appears on the host |
 | 5 | Continue holding — no additional `a` characters |
 | 6 | Short tap `b` — spoken but **not** sent to host |
 | 7 | Disconnect USB cable from host (or hub) |
@@ -170,7 +170,7 @@ With BLE keyboard connected, enable Settings → Bluetooth → **Computer / Outp
 
 **Variations (5 cycles each):**
 
-- Disconnect during an active key hold (outline visible).
+- Disconnect during an active key hold (green tick visible).
 - Reconnect while BLE computer is also paired (see §5) — USB should take output when mounted.
 
 ---

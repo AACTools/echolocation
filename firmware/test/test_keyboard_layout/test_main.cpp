@@ -75,6 +75,36 @@ void test_auto_uses_detected_us(void) {
   TEST_ASSERT_EQUAL_STRING("minus", label.speech_token);
 }
 
+void test_config_name_arrow_down(void) {
+  char name[24];
+  TEST_ASSERT_TRUE(keyboardLayoutConfigName(0x51, 0, name, sizeof(name)));
+  TEST_ASSERT_EQUAL_STRING("arrow_down", name);
+}
+
+void test_config_name_letter_a(void) {
+  char name[24];
+  TEST_ASSERT_TRUE(keyboardLayoutConfigName(0x04, 0, name, sizeof(name)));
+  TEST_ASSERT_EQUAL_STRING("a", name);
+}
+
+void test_config_name_digit_one(void) {
+  char name[24];
+  TEST_ASSERT_TRUE(keyboardLayoutConfigName(0x1E, 0, name, sizeof(name)));
+  TEST_ASSERT_EQUAL_STRING("1", name);
+}
+
+void test_config_name_left_shift(void) {
+  char name[24];
+  TEST_ASSERT_TRUE(keyboardLayoutConfigName(0, 0x02, name, sizeof(name)));
+  TEST_ASSERT_EQUAL_STRING("left_shift", name);
+}
+
+void test_config_name_left_bracket(void) {
+  char name[24];
+  TEST_ASSERT_TRUE(keyboardLayoutConfigName(0x2F, 0, name, sizeof(name)));
+  TEST_ASSERT_EQUAL_STRING("left_bracket", name);
+}
+
 int main(int argc, char** argv) {
   (void)argc;
   (void)argv;
@@ -90,5 +120,10 @@ int main(int argc, char** argv) {
   RUN_TEST(test_usb_country_us);
   RUN_TEST(test_usb_country_uk);
   RUN_TEST(test_auto_uses_detected_us);
+  RUN_TEST(test_config_name_arrow_down);
+  RUN_TEST(test_config_name_letter_a);
+  RUN_TEST(test_config_name_digit_one);
+  RUN_TEST(test_config_name_left_shift);
+  RUN_TEST(test_config_name_left_bracket);
   return UNITY_END();
 }

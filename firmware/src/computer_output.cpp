@@ -48,6 +48,23 @@ void computerOutputSendKey(uint8_t mod, uint8_t key) {
 #endif
 }
 
+void computerOutputSendBootReport(const uint8_t report[8]) {
+  if (report == nullptr) {
+    return;
+  }
+
+#ifndef ECHOLOCATION_DEBUG
+  if (usbHidComputerIsReady()) {
+    usbHidComputerSendBootReport(report);
+    return;
+  }
+#endif
+
+  if (bleComputerOutputIsConnected()) {
+    bleComputerOutputSendBootReport(report);
+  }
+}
+
 bool computerOutputUsbReady() {
 #ifndef ECHOLOCATION_DEBUG
   return usbHidComputerIsReady();
