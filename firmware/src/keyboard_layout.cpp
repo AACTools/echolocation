@@ -583,3 +583,59 @@ bool keyboardLayoutResolveToken(const char* token, uint8_t* out_key,
                                 uint8_t* out_mod_bit) {
   return resolveTokenToHid(token, out_key, out_mod_bit);
 }
+
+bool keyboardLayoutConfigName(uint8_t key, uint8_t mod_bit, char* out,
+                              size_t out_len) {
+  if (out == nullptr || out_len == 0) {
+    return false;
+  }
+  out[0] = '\0';
+
+  if (mod_bit != 0) {
+    for (size_t i = 0; i < sizeof(kModifiers) / sizeof(kModifiers[0]); ++i) {
+      if (kModifiers[i].usage == mod_bit) {
+        copyToken(out, out_len, kModifiers[i].token);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if (key == 0) {
+    return false;
+  }
+
+  for (size_t i = 0; i < sizeof(kNamedKeys) / sizeof(kNamedKeys[0]); ++i) {
+    if (kNamedKeys[i].usage == key) {
+      copyToken(out, out_len, kNamedKeys[i].token);
+      return true;
+    }
+  }
+
+  if (key >= 0x04 && key <= 0x1D) {
+    char letter[2] = {static_cast<char>('a' + (key - 0x04)), '\0'};
+    copyToken(out, out_len, letter);
+    return true;
+  }
+  if (key >= 0x1E && key <= 0x26) {
+    char digit[2] = {static_cast<char>('1' + (key - 0x1E)), '\0'};
+    copyToken(out, out_len, digit);
+    return true;
+  }
+  if (key == 0x27) {
+    copyToken(out, out_len, "0");
+    return true;
+  }
+
+  for (size_t i = 0; i < sizeof(kPhysicalKeys) / sizeof(kPhysicalKeys[0]); ++i) {
+    if (kPhysicalKeys[i].usage == key) {
+      copyToken(out, out_len, kPhysicalKeys[i].suffix);
+      return true;
+    }
+  }
+
+  char fallback[12];
+  snprintf(fallback, sizeof(fallback), "key_0x%02x", key);
+  copyToken(out, out_len, fallback);
+  return true;
+}

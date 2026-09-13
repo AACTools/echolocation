@@ -75,8 +75,13 @@ const KeyBehavior* behaviorForUi(const KeyBehavior& behavior) {
   return keyConfigHasOverrides(behavior) ? &behavior : nullptr;
 }
 
-void showPressedKey(const char* display, const KeyBehavior& behavior) {
-  uiSetPressedKey(display, behaviorForUi(behavior));
+void showPressedKey(const KeyLabel& label, const KeyBehavior& behavior, uint8_t key,
+                    uint8_t mod_bit) {
+  char config_name[24];
+  if (!keyboardLayoutConfigName(key, mod_bit, config_name, sizeof(config_name))) {
+    config_name[0] = '\0';
+  }
+  uiSetPressedKey(label.display, behaviorForUi(behavior), config_name);
 }
 
 void buildPassthroughReport(const uint8_t input[8], uint8_t output[8]) {
@@ -124,7 +129,7 @@ void keyboardInputOnModifierChange(uint8_t old_mod, uint8_t new_mod) {
       KeyLabel label;
       if (keyboardLayoutResolveModifier(bit, &label)) {
         const KeyBehavior behavior = keyConfigForModifier(bit);
-        showPressedKey(label.display, behavior);
+        showPressedKey(label, behavior, 0, bit);
         if (behavior.echo_enabled) {
           keyAudioPlayForToken(label.speech_token);
         }
@@ -166,7 +171,7 @@ void keyboardInputOnKeyDown(uint8_t mod, uint8_t key) {
   const KeyBehavior behavior = keyConfigForKey(key);
   displayed_key = key;
   displayed_mod = mod;
-  showPressedKey(label.display, behavior);
+  showPressedKey(label, behavior, key, 0);
 
   if (behavior.hold_enabled && (held_key != key || held_mod != mod)) {
     held_key = key;

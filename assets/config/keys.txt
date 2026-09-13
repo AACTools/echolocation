@@ -3,6 +3,7 @@
 #
 # Format: <key> echo=<on|off> hold=<on|off>
 # Key names match speech tokens: space, a, left_shift, arrow_up, enter, ...
+# To find a name: Settings → Key Overrides → Show key name, then press the key.
 #
 # Defaults (omit a key to keep these):
 #   echo=on   speak the key when pressed

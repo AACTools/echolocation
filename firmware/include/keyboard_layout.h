@@ -29,6 +29,10 @@ bool keyboardLayoutResolveModifier(uint8_t mod_mask, KeyLabel* out);
 bool keyboardLayoutResolveToken(const char* token, uint8_t* out_key,
                                 uint8_t* out_mod_bit);
 
+// Canonical keys.txt name for a HID key or single modifier bit.
+bool keyboardLayoutConfigName(uint8_t key, uint8_t mod_bit, char* out,
+                              size_t out_len);
+
 // Single modifier bit: 0x01 LCtrl, 0x02 LShift, 0x04 LAlt, 0x08 LGui,
 // 0x10 RCtrl, 0x20 RShift, 0x40 RAlt, 0x80 RGui.
 bool keyboardLayoutIsModifierMask(uint8_t mod_mask);

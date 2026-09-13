@@ -51,7 +51,7 @@ Mark a cycle **PASS** only if **all** of the following hold:
 | UI status | Main-screen flow indicator and the relevant settings screen match actual connection state within a few seconds |
 | Speech | Each keypress is spoken; audio starts within ~50 ms of key down |
 | Speech interrupt | Pressing a new key while audio is playing stops the current clip and speaks the new key |
-| Screen | Main screen shows the pressed key immediately and keeps it after release; overrides appear below the key; green tick appears to the right after a hold-to-send key is sent |
+| Screen | Main screen shows the pressed key immediately and keeps it after release; overrides appear below the key; green tick appears to the right after a hold-to-send key is sent; Show key name (off by default) shows the keys.txt token above the key |
 | Computer output | Holding a key sends **exactly one** keypress to the connected computer (USB and/or BLE as applicable) |
 | Recovery | After disconnect, the device is ready for the next connect without reboot |
 | Stability | No freeze, watchdog reset, or permanent “Connecting…” / “Connection failed” without cause |

@@ -13,6 +13,7 @@ constexpr char kKeyVolume[] = "volume";
 constexpr char kKeyHoldMs[] = "hold_ms";
 constexpr char kKeyBluetoothOutput[] = "bt_output";
 constexpr char kKeyBluetoothKeyboard[] = "bt_keyboard";
+constexpr char kKeyShowKeyName[] = "show_key_name";
 
 Preferences prefs;
 
@@ -34,12 +35,14 @@ void deviceSettingsLoad() {
       prefs.getBool(kKeyBluetoothOutput, kDefaultBluetoothOutput);
   const bool bluetooth_keyboard =
       prefs.getBool(kKeyBluetoothKeyboard, kDefaultBluetoothKeyboard);
+  const bool show_key_name = prefs.getBool(kKeyShowKeyName, kDefaultShowKeyName);
   prefs.end();
 
   uiSetVolume(volume);
   uiSetHoldDurationMs(hold_ms);
   uiSetBluetoothOutput(bluetooth_output);
   uiSetBluetoothKeyboard(bluetooth_keyboard);
+  uiSetShowKeyName(show_key_name);
 }
 
 void deviceSettingsSaveVolume(uint8_t volume) {
@@ -63,5 +66,11 @@ void deviceSettingsSaveBluetoothOutput(bool enabled) {
 void deviceSettingsSaveBluetoothKeyboard(bool enabled) {
   prefs.begin(kNamespace, false);
   prefs.putBool(kKeyBluetoothKeyboard, enabled);
+  prefs.end();
+}
+
+void deviceSettingsSaveShowKeyName(bool enabled) {
+  prefs.begin(kNamespace, false);
+  prefs.putBool(kKeyShowKeyName, enabled);
   prefs.end();
 }
