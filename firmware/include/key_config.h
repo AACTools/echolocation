@@ -6,6 +6,8 @@
 struct KeyBehavior {
   bool echo_enabled = true;
   bool hold_enabled = true;
+  char display_text[24] = {};
+  char audio_file[32] = {};
 };
 
 struct KeyConfigEntry {
@@ -32,3 +34,5 @@ void keyConfigFormatOverrideSummary(const KeyBehavior& behavior, char* out,
                                     size_t out_len);
 void keyConfigFormatEntrySummary(const KeyConfigEntry& entry, char* out,
                                  size_t out_len);
+void keyConfigAudioBasename(const KeyBehavior& behavior, char* out,
+                            size_t out_len);

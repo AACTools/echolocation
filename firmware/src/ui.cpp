@@ -96,7 +96,7 @@ lv_obj_t* bluetooth_output_switch = nullptr;
 lv_obj_t* bluetooth_output_status_label = nullptr;
 lv_obj_t* bluetooth_keyboard_switch = nullptr;
 lv_obj_t* bluetooth_keyboard_status_label = nullptr;
-lv_obj_t* show_key_name_switch = nullptr;
+lv_obj_t* debug_overrides_switch = nullptr;
 lv_obj_t* search_keyboard_action_container = nullptr;
 lv_obj_t* see_paired_devices_action_container = nullptr;
 lv_obj_t* search_keyboard_status_label = nullptr;
@@ -115,8 +115,9 @@ size_t battery_label_count = 0;
 uint32_t hold_duration_ms = kDefaultHoldDurationMs;
 bool bluetooth_output_enabled = kDefaultBluetoothOutput;
 bool bluetooth_keyboard_enabled = kDefaultBluetoothKeyboard;
-bool show_key_name_enabled = kDefaultShowKeyName;
+bool debug_overrides_enabled = kDefaultShowKeyName;
 char last_pressed_config_name[24] = {};
+char last_pressed_override_summary[80] = {};
 uint8_t bluetooth_output_dot_count = 1;
 uint8_t bluetooth_keyboard_dot_count = 1;
 uint8_t search_keyboard_dot_count = 1;
@@ -171,7 +172,7 @@ void refreshPairedKeyboardDeviceList();
 void refreshKeyOverridesList();
 void layoutPressedKeySentIcon();
 void layoutPressedKeyName();
-void refreshPressedKeyNameVisibility();
+void refreshPressedKeyDebugVisibility();
 void setPressedKeySentIconVisible(bool visible);
 const char* keyConfigStatusText();
 
@@ -1080,20 +1081,31 @@ void layoutPressedKeyName() {
                   -4);
 }
 
-void refreshPressedKeyNameVisibility() {
-  if (pressed_key_name_label == nullptr) {
-    return;
-  }
+void refreshPressedKeyDebugVisibility() {
   const bool key_visible =
       pressed_key_box != nullptr && !lv_obj_has_flag(pressed_key_box, LV_OBJ_FLAG_HIDDEN);
-  const bool show =
-      show_key_name_enabled && last_pressed_config_name[0] != '\0' && key_visible;
-  if (show) {
-    lv_label_set_text(pressed_key_name_label, last_pressed_config_name);
-    layoutPressedKeyName();
-    lv_obj_remove_flag(pressed_key_name_label, LV_OBJ_FLAG_HIDDEN);
-  } else {
-    lv_obj_add_flag(pressed_key_name_label, LV_OBJ_FLAG_HIDDEN);
+
+  if (pressed_key_name_label != nullptr) {
+    const bool show_name =
+        debug_overrides_enabled && last_pressed_config_name[0] != '\0' && key_visible;
+    if (show_name) {
+      lv_label_set_text(pressed_key_name_label, last_pressed_config_name);
+      layoutPressedKeyName();
+      lv_obj_remove_flag(pressed_key_name_label, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(pressed_key_name_label, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+
+  if (pressed_key_override_label != nullptr) {
+    const bool show_override = debug_overrides_enabled &&
+                               last_pressed_override_summary[0] != '\0' && key_visible;
+    if (show_override) {
+      lv_label_set_text(pressed_key_override_label, last_pressed_override_summary);
+      lv_obj_remove_flag(pressed_key_override_label, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(pressed_key_override_label, LV_OBJ_FLAG_HIDDEN);
+    }
   }
 }
 
@@ -1169,7 +1181,7 @@ void refreshKeyOverridesList() {
     }
 
     if (i < count) {
-      char line[64];
+      char line[96];
       keyConfigFormatEntrySummary(entries[i], line, sizeof(line));
       if (row_ui.label != nullptr) {
         lv_label_set_text(row_ui.label, line);
@@ -1181,11 +1193,11 @@ void refreshKeyOverridesList() {
   }
 }
 
-void onShowKeyNameSwitchChanged(lv_event_t* event) {
+void onDebugOverridesSwitchChanged(lv_event_t* event) {
   lv_obj_t* sw = lv_event_get_target_obj(event);
-  show_key_name_enabled = lv_obj_has_state(sw, LV_STATE_CHECKED);
-  deviceSettingsSaveShowKeyName(show_key_name_enabled);
-  refreshPressedKeyNameVisibility();
+  debug_overrides_enabled = lv_obj_has_state(sw, LV_STATE_CHECKED);
+  deviceSettingsSaveShowKeyName(debug_overrides_enabled);
+  refreshPressedKeyDebugVisibility();
 }
 
 void onKeyOverridesMenuClicked(lv_event_t* event) {
@@ -1362,6 +1374,9 @@ void buildScreens() {
   lv_label_set_text(pressed_key_label, "");
   lv_obj_set_style_text_font(pressed_key_label, &lv_font_montserrat_48, 0);
   lv_obj_set_style_text_color(pressed_key_label, lv_color_white(), 0);
+  lv_obj_set_style_max_width(pressed_key_label, 296, 0);
+  lv_obj_set_style_text_align(pressed_key_label, LV_TEXT_ALIGN_CENTER, 0);
+  lv_label_set_long_mode(pressed_key_label, LV_LABEL_LONG_WRAP);
 
   pressed_key_sent_icon = lv_label_create(screen_main);
   lv_label_set_text(pressed_key_sent_icon, LV_SYMBOL_OK);
@@ -1379,6 +1394,9 @@ void buildScreens() {
   lv_label_set_text(pressed_key_override_label, "");
   lv_obj_set_style_text_font(pressed_key_override_label, &lv_font_montserrat_14, 0);
   lv_obj_set_style_text_color(pressed_key_override_label, kOverrideBadgeColor, 0);
+  lv_obj_set_style_max_width(pressed_key_override_label, 296, 0);
+  lv_obj_set_style_text_align(pressed_key_override_label, LV_TEXT_ALIGN_CENTER, 0);
+  lv_label_set_long_mode(pressed_key_override_label, LV_LABEL_LONG_WRAP);
   lv_obj_add_flag(pressed_key_override_label, LV_OBJ_FLAG_HIDDEN);
 
   speaker_output_label = lv_label_create(screen_main);
@@ -1734,27 +1752,27 @@ void buildScreens() {
   styleScreen(screen_key_overrides);
   createHeader(screen_key_overrides, "Key Overrides", Screen::kSettings);
 
-  lv_obj_t* show_key_name_row = lv_obj_create(screen_key_overrides);
-  lv_obj_set_size(show_key_name_row, LV_PCT(100), 44);
-  lv_obj_align(show_key_name_row, LV_ALIGN_TOP_MID, 0, kHeaderHeight);
-  lv_obj_set_style_bg_opa(show_key_name_row, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(show_key_name_row, 0, 0);
-  lv_obj_set_style_pad_hor(show_key_name_row, 12, 0);
-  lv_obj_remove_flag(show_key_name_row, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_set_flex_flow(show_key_name_row, LV_FLEX_FLOW_ROW);
-  lv_obj_set_flex_align(show_key_name_row, LV_FLEX_ALIGN_SPACE_BETWEEN,
+  lv_obj_t* debug_overrides_row = lv_obj_create(screen_key_overrides);
+  lv_obj_set_size(debug_overrides_row, LV_PCT(100), 44);
+  lv_obj_align(debug_overrides_row, LV_ALIGN_TOP_MID, 0, kHeaderHeight);
+  lv_obj_set_style_bg_opa(debug_overrides_row, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(debug_overrides_row, 0, 0);
+  lv_obj_set_style_pad_hor(debug_overrides_row, 12, 0);
+  lv_obj_remove_flag(debug_overrides_row, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_flex_flow(debug_overrides_row, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(debug_overrides_row, LV_FLEX_ALIGN_SPACE_BETWEEN,
                         LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-  lv_obj_t* show_key_name_label = lv_label_create(show_key_name_row);
-  lv_label_set_text(show_key_name_label, "Show key name");
-  lv_obj_set_style_text_font(show_key_name_label, &lv_font_montserrat_16, 0);
-  lv_obj_set_style_text_color(show_key_name_label, lv_color_white(), 0);
+  lv_obj_t* debug_overrides_label = lv_label_create(debug_overrides_row);
+  lv_label_set_text(debug_overrides_label, "Debug overrides");
+  lv_obj_set_style_text_font(debug_overrides_label, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_color(debug_overrides_label, lv_color_white(), 0);
 
-  show_key_name_switch = lv_switch_create(show_key_name_row);
-  if (show_key_name_enabled) {
-    lv_obj_add_state(show_key_name_switch, LV_STATE_CHECKED);
+  debug_overrides_switch = lv_switch_create(debug_overrides_row);
+  if (debug_overrides_enabled) {
+    lv_obj_add_state(debug_overrides_switch, LV_STATE_CHECKED);
   }
-  lv_obj_add_event_cb(show_key_name_switch, onShowKeyNameSwitchChanged,
+  lv_obj_add_event_cb(debug_overrides_switch, onDebugOverridesSwitchChanged,
                       LV_EVENT_VALUE_CHANGED, nullptr);
 
   key_overrides_status_label = lv_label_create(screen_key_overrides);
@@ -1769,7 +1787,7 @@ void buildScreens() {
   for (size_t i = 0; i < kMaxKeyOverrideSlots; ++i) {
     lv_obj_t* row = lv_obj_create(key_overrides_list);
     lv_obj_set_width(row, LV_PCT(100));
-    lv_obj_set_height(row, 36);
+    lv_obj_set_height(row, 48);
     lv_obj_set_style_radius(row, 8, 0);
     lv_obj_set_style_bg_color(row, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_border_width(row, 0, 0);
@@ -1821,15 +1839,15 @@ void uiSetBluetoothKeyboard(bool enabled) {
 }
 
 void uiSetShowKeyName(bool enabled) {
-  show_key_name_enabled = enabled;
-  if (show_key_name_switch != nullptr) {
+  debug_overrides_enabled = enabled;
+  if (debug_overrides_switch != nullptr) {
     if (enabled) {
-      lv_obj_add_state(show_key_name_switch, LV_STATE_CHECKED);
+      lv_obj_add_state(debug_overrides_switch, LV_STATE_CHECKED);
     } else {
-      lv_obj_remove_state(show_key_name_switch, LV_STATE_CHECKED);
+      lv_obj_remove_state(debug_overrides_switch, LV_STATE_CHECKED);
     }
   }
-  refreshPressedKeyNameVisibility();
+  refreshPressedKeyDebugVisibility();
 }
 
 void uiInit() {
@@ -1866,36 +1884,32 @@ void uiSetPressedKey(const char* label, const KeyBehavior* behavior,
     return;
   }
   setPressedKeySentIconVisible(false);
-  if (config_name != nullptr && config_name[0] != '\0') {
-    strncpy(last_pressed_config_name, config_name, sizeof(last_pressed_config_name) - 1);
-    last_pressed_config_name[sizeof(last_pressed_config_name) - 1] = '\0';
-  } else {
-    last_pressed_config_name[0] = '\0';
-  }
   if (label == nullptr || label[0] == '\0') {
+    last_pressed_config_name[0] = '\0';
+    last_pressed_override_summary[0] = '\0';
     lv_label_set_text(pressed_key_label, "");
     if (pressed_key_override_label != nullptr) {
       lv_label_set_text(pressed_key_override_label, "");
       lv_obj_add_flag(pressed_key_override_label, LV_OBJ_FLAG_HIDDEN);
     }
     lv_obj_add_flag(pressed_key_box, LV_OBJ_FLAG_HIDDEN);
-    refreshPressedKeyNameVisibility();
+    refreshPressedKeyDebugVisibility();
     return;
   }
-  lv_label_set_text(pressed_key_label, label);
-  if (pressed_key_override_label != nullptr) {
-    if (behavior != nullptr && keyConfigHasOverrides(*behavior)) {
-      char summary[48];
-      keyConfigFormatOverrideSummary(*behavior, summary, sizeof(summary));
-      lv_label_set_text(pressed_key_override_label, summary);
-      lv_obj_remove_flag(pressed_key_override_label, LV_OBJ_FLAG_HIDDEN);
-    } else {
-      lv_label_set_text(pressed_key_override_label, "");
-      lv_obj_add_flag(pressed_key_override_label, LV_OBJ_FLAG_HIDDEN);
-    }
+  if (config_name != nullptr && config_name[0] != '\0') {
+    strncpy(last_pressed_config_name, config_name, sizeof(last_pressed_config_name) - 1);
+    last_pressed_config_name[sizeof(last_pressed_config_name) - 1] = '\0';
+  } else {
+    last_pressed_config_name[0] = '\0';
   }
+  last_pressed_override_summary[0] = '\0';
+  if (behavior != nullptr && keyConfigHasOverrides(*behavior)) {
+    keyConfigFormatOverrideSummary(*behavior, last_pressed_override_summary,
+                                   sizeof(last_pressed_override_summary));
+  }
+  lv_label_set_text(pressed_key_label, label);
   lv_obj_remove_flag(pressed_key_box, LV_OBJ_FLAG_HIDDEN);
-  refreshPressedKeyNameVisibility();
+  refreshPressedKeyDebugVisibility();
 }
 
 void uiSetKeySent(bool sent) { setPressedKeySentIconVisible(sent); }

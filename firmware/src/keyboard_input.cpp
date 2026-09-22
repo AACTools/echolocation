@@ -75,13 +75,35 @@ const KeyBehavior* behaviorForUi(const KeyBehavior& behavior) {
   return keyConfigHasOverrides(behavior) ? &behavior : nullptr;
 }
 
+const char* displayTextForKey(const KeyLabel& label, const KeyBehavior& behavior) {
+  if (behavior.display_text[0] != '\0') {
+    return behavior.display_text;
+  }
+  return label.display;
+}
+
+void playKeyAudio(const KeyBehavior& behavior, const char* default_token) {
+  if (behavior.audio_file[0] != '\0') {
+    char basename[32];
+    keyConfigAudioBasename(behavior, basename, sizeof(basename));
+    if (basename[0] != '\0') {
+      keyAudioPlayForToken(basename);
+    }
+    return;
+  }
+  if (behavior.echo_enabled) {
+    keyAudioPlayForToken(default_token);
+  }
+}
+
 void showPressedKey(const KeyLabel& label, const KeyBehavior& behavior, uint8_t key,
                     uint8_t mod_bit) {
   char config_name[24];
   if (!keyboardLayoutConfigName(key, mod_bit, config_name, sizeof(config_name))) {
     config_name[0] = '\0';
   }
-  uiSetPressedKey(label.display, behaviorForUi(behavior), config_name);
+  uiSetPressedKey(displayTextForKey(label, behavior), behaviorForUi(behavior),
+                  config_name);
 }
 
 void buildPassthroughReport(const uint8_t input[8], uint8_t output[8]) {
@@ -130,9 +152,7 @@ void keyboardInputOnModifierChange(uint8_t old_mod, uint8_t new_mod) {
       if (keyboardLayoutResolveModifier(bit, &label)) {
         const KeyBehavior behavior = keyConfigForModifier(bit);
         showPressedKey(label, behavior, 0, bit);
-        if (behavior.echo_enabled) {
-          keyAudioPlayForToken(label.speech_token);
-        }
+        playKeyAudio(behavior, label.speech_token);
       }
     }
   }
@@ -178,9 +198,7 @@ void keyboardInputOnKeyDown(uint8_t mod, uint8_t key) {
     held_mod = mod;
   }
 
-  if (behavior.echo_enabled) {
-    keyAudioPlayForToken(label.speech_token);
-  }
+  playKeyAudio(behavior, label.speech_token);
 }
 
 void keyboardInputOnKeyUp(uint8_t mod, uint8_t key) {

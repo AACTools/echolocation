@@ -1,19 +1,32 @@
 # echolocation per-key overrides
 # Copy this file to the microSD card as /config/keys.txt
 #
-# Format: <key> echo=<on|off> hold=<on|off>
-# Key names match speech tokens: space, a, left_shift, arrow_up, enter, ...
-# To find a name: Settings → Key Overrides → Show key name, then press the key.
+# Format: <key> echo=<on|off> hold=<on|off> text=<label> audio=<file>
+# All parameters are optional. Key names match speech tokens:
+# space, a, left_shift, arrow_up, enter, ...
+# To find a name: Settings → Key Overrides → Debug overrides, then press the key.
 #
-# Defaults (omit a key to keep these):
+# Defaults (omit a key, or omit a parameter, to keep these):
 #   echo=on   speak the key when pressed
 #   hold=on   send to the computer only after the hold duration
+#   text      show the usual key label on screen
+#   audio     play /audio/<key>.wav
 #
 # hold=off relays key down/up to the computer immediately.
+# text= shows that label instead of the key name.
+#   Use quotes when the label has spaces: text="Delete Letter"
+# audio= plays that file from /audio instead of the default clip
+#   (next.wav and next both load /audio/next.wav).
 # Lines starting with # are comments. Unlisted keys keep the defaults.
+#
+# Examples:
+#   arrow_up echo=off hold=off text=Next audio=next.wav
+#   arrow_up text=Next
+#   backspace hold=off text="Delete Letter" audio=delete_letter.wav
 
-# Navigation and modifiers: send immediately, skip speech
-arrow_up echo=off hold=off
-arrow_down echo=on hold=off
-arrow_left echo=off hold=on
-arrow_right echo=on hold=on
+# AAC function keys: show/speak the action name, send immediately
+backspace hold=off text="Delete Letter" audio=delete_letter.wav
+hash hold=off text="Delete Word" audio=delete_word.wav
+enter hold=off text="Speak Message" audio=speak_message.wav
+right_shift hold=off text="Clear All" audio=clear_all.wav
+right_alt hold=off text="Home" audio=home.wav
