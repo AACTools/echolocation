@@ -46,16 +46,16 @@ On the CoreS3 screen it should show the last key that was pressed. The key appea
   - Configure Keyboard Connection
   - Configure Computer Connection
 - Hold duration
-- Key overrides (lists per-key settings loaded from the SD card, plus a **Show key name** toggle)
+- Key overrides (lists per-key settings loaded from the SD card, plus a **Debug overrides** toggle)
 - Factory reset
 
-When a key with override settings is pressed on the main screen, the UI shows which settings apply below the key (for example `echo off` or `echo off, hold off`). Those labels stay until another key is pressed.
+When a key with override settings is pressed on the main screen, **Debug overrides** (off by default) shows which settings apply below the key (for example `echo off`, `echo off, hold off`, or `text Next`). Those labels stay until another key is pressed. If `text=` is set, that label is shown instead of the usual key name.
 
 When a hold-to-send key is sent to the computer, a green tick appears to the right of the key and remains until another key is pressed.
 
-Settings → Key Overrides includes **Show key name** (off by default). When it is on, the config token for `keys.txt` (for example `arrow_down`) appears in small type above the key on the main screen so it can be copied into the SD card file.
+Settings → Key Overrides includes **Debug overrides** (off by default). When it is on, the config token for `keys.txt` (for example `arrow_down`) appears in small type above the key on the main screen, and the yellow override summary appears below the key.
 
-Per-key echo and hold behaviour can also be configured in `/config/keys.txt` on the microSD card. Keys not listed use the default behaviour (speak on press, send to computer after hold duration). Setting `hold=off` relays key down/up to the connected computer immediately.
+Per-key behaviour can also be configured in `/config/keys.txt` on the microSD card. All parameters are optional. Keys not listed use the default behaviour (speak on press, send to computer after hold duration, show the usual key label, play `/audio/<key>.wav`). Setting `hold=off` relays key down/up to the connected computer immediately. Setting `text=` replaces the on-screen key label. Labels with spaces must be quoted (`text="Delete Letter"`). Setting `audio=` plays that WAV from `/audio` instead of the default key clip (with or without a `.wav` suffix). Custom audio plays even when `echo=off`.
 
 The screen should also report any errors that occur in a clear and easy to understand way.
 

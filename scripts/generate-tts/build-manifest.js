@@ -253,6 +253,13 @@ const physicalKeys = [
   ["f24", "F 24"],
 ];
 
+const overlayPhrases = [
+  ["delete_letter", "Delete Letter"],
+  ["delete_word", "Delete Word"],
+  ["speak_message", "Speak Message"],
+  ["clear_all", "Clear All"],
+];
+
 function entry(token, text) {
   const filename = `${token}.wav`;
   return { token, text, filename };
@@ -291,6 +298,10 @@ for (const [token, text] of modifiers) {
 
 for (const [suffix, text] of physicalKeys) {
   add(`key_${suffix}`, `${text}`);
+}
+
+for (const [token, text] of overlayPhrases) {
+  add(token, text);
 }
 
 const manifest = { entries };

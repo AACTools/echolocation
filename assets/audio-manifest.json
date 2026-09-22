@@ -1249,6 +1249,26 @@
       "token": "key_f24",
       "text": "F 24",
       "filename": "key_f24.wav"
+    },
+    {
+      "token": "delete_letter",
+      "text": "Delete Letter",
+      "filename": "delete_letter.wav"
+    },
+    {
+      "token": "delete_word",
+      "text": "Delete Word",
+      "filename": "delete_word.wav"
+    },
+    {
+      "token": "speak_message",
+      "text": "Speak Message",
+      "filename": "speak_message.wav"
+    },
+    {
+      "token": "clear_all",
+      "text": "Clear All",
+      "filename": "clear_all.wav"
     }
   ]
 }

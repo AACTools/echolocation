@@ -25,7 +25,7 @@ If upload fails, long-press **RST** until the screen goes blank and try again. S
 
 ### 3. Load speech onto the microSD card
 
-Generate WAV files with Piper TTS — see [scripts/generate-tts/README.md](scripts/generate-tts/README.md). Copy the `audio` folder to the root of a FAT32 microSD card. Optionally copy [assets/config/keys.txt](assets/config/keys.txt) to `/config/keys.txt` on the card for per-key echo and hold overrides. Insert the card into the CoreS3 and reboot.
+Generate WAV files with Piper TTS — see [scripts/generate-tts/README.md](scripts/generate-tts/README.md). Copy the `audio` folder to the root of a FAT32 microSD card. Optionally copy [assets/config/keys.txt](assets/config/keys.txt) to `/config/keys.txt` on the card for per-key echo, hold, display text, and audio overrides. Insert the card into the CoreS3 and reboot.
 
 ## Releases
 

@@ -45,6 +45,99 @@ bool parseOnOffValue(const char* value, bool* out_enabled) {
   return false;
 }
 
+bool copyBoundedValue(const char* value, char* out, size_t out_len) {
+  if (value == nullptr || value[0] == '\0' || out == nullptr || out_len == 0) {
+    return false;
+  }
+  if (strlen(value) >= out_len) {
+    return false;
+  }
+  memcpy(out, value, strlen(value) + 1);
+  return true;
+}
+
+void appendSummaryPart(char* out, size_t out_len, bool* first, const char* part) {
+  if (out == nullptr || out_len == 0 || first == nullptr || part == nullptr) {
+    return;
+  }
+  if (*first) {
+    strncpy(out, part, out_len - 1);
+    out[out_len - 1] = '\0';
+    *first = false;
+    return;
+  }
+  strncat(out, ", ", out_len - strlen(out) - 1);
+  strncat(out, part, out_len - strlen(out) - 1);
+}
+
+bool unquoteValue(const char* value, char* out, size_t out_len) {
+  if (value == nullptr || out == nullptr || out_len == 0) {
+    return false;
+  }
+  if (value[0] != '"') {
+    if (strlen(value) >= out_len) {
+      return false;
+    }
+    memcpy(out, value, strlen(value) + 1);
+    return true;
+  }
+
+  const size_t vlen = strlen(value);
+  if (vlen < 2 || value[vlen - 1] != '"') {
+    return false;
+  }
+  const size_t inner_len = vlen - 2;
+  if (inner_len >= out_len) {
+    return false;
+  }
+  memcpy(out, value + 1, inner_len);
+  out[inner_len] = '\0';
+  return true;
+}
+
+bool readSettingToken(const char** cursor, char* token, size_t token_len) {
+  if (cursor == nullptr || *cursor == nullptr || token == nullptr ||
+      token_len == 0) {
+    return false;
+  }
+
+  const char* p = *cursor;
+  const char* start = p;
+
+  while (*p != '\0' && *p != '=' && *p != '#' &&
+         !isspace(static_cast<unsigned char>(*p))) {
+    ++p;
+  }
+  if (*p != '=') {
+    return false;
+  }
+  ++p;
+
+  if (*p == '"') {
+    ++p;
+    while (*p != '\0' && *p != '"') {
+      ++p;
+    }
+    if (*p != '"') {
+      return false;
+    }
+    ++p;
+  } else {
+    while (*p != '\0' && *p != '#' && !isspace(static_cast<unsigned char>(*p))) {
+      ++p;
+    }
+  }
+
+  const size_t len = static_cast<size_t>(p - start);
+  if (len == 0 || len >= token_len) {
+    return false;
+  }
+  memcpy(token, start, len);
+  token[len] = '\0';
+  *cursor = p;
+  return true;
+}
+
 bool parseSettingToken(const char* token, KeyBehavior* behavior) {
   if (token == nullptr || behavior == nullptr) {
     return false;
@@ -63,19 +156,34 @@ bool parseSettingToken(const char* token, KeyBehavior* behavior) {
   memcpy(key, token, key_len);
   key[key_len] = '\0';
 
-  const char* value = eq + 1;
-  bool enabled = true;
-  if (!parseOnOffValue(value, &enabled)) {
+  char value[64];
+  if (!unquoteValue(eq + 1, value, sizeof(value))) {
     return false;
   }
 
   if (equalsIgnoreCase(key, "echo")) {
+    bool enabled = true;
+    if (!parseOnOffValue(value, &enabled)) {
+      return false;
+    }
     behavior->echo_enabled = enabled;
     return true;
   }
   if (equalsIgnoreCase(key, "hold")) {
+    bool enabled = true;
+    if (!parseOnOffValue(value, &enabled)) {
+      return false;
+    }
     behavior->hold_enabled = enabled;
     return true;
+  }
+  if (equalsIgnoreCase(key, "text")) {
+    return copyBoundedValue(value, behavior->display_text,
+                            sizeof(behavior->display_text));
+  }
+  if (equalsIgnoreCase(key, "audio")) {
+    return copyBoundedValue(value, behavior->audio_file,
+                            sizeof(behavior->audio_file));
   }
   return false;
 }
@@ -115,18 +223,10 @@ bool keyConfigParseLine(const char* line, char* out_name, size_t out_name_len,
       break;
     }
 
-    const char* start = p;
-    while (*p != '\0' && !isspace(static_cast<unsigned char>(*p)) && *p != '#') {
-      ++p;
-    }
-
-    char token[32];
-    const size_t token_len = static_cast<size_t>(p - start);
-    if (token_len == 0 || token_len >= sizeof(token)) {
+    char token[64];
+    if (!readSettingToken(&p, token, sizeof(token))) {
       return false;
     }
-    memcpy(token, start, token_len);
-    token[token_len] = '\0';
 
     if (!parseSettingToken(token, &behavior)) {
       return false;
@@ -146,7 +246,8 @@ bool keyConfigParseLine(const char* line, char* out_name, size_t out_name_len,
 }
 
 bool keyConfigHasOverrides(const KeyBehavior& behavior) {
-  return !behavior.echo_enabled || !behavior.hold_enabled;
+  return !behavior.echo_enabled || !behavior.hold_enabled ||
+         behavior.display_text[0] != '\0' || behavior.audio_file[0] != '\0';
 }
 
 void keyConfigFormatOverrideSummary(const KeyBehavior& behavior, char* out,
@@ -162,17 +263,20 @@ void keyConfigFormatOverrideSummary(const KeyBehavior& behavior, char* out,
 
   bool first = true;
   if (!behavior.echo_enabled) {
-    strncpy(out, "echo off", out_len - 1);
-    out[out_len - 1] = '\0';
-    first = false;
+    appendSummaryPart(out, out_len, &first, "echo off");
   }
   if (!behavior.hold_enabled) {
-    if (first) {
-      strncpy(out, "hold off", out_len - 1);
-    } else {
-      strncat(out, ", hold off", out_len - strlen(out) - 1);
-    }
-    out[out_len - 1] = '\0';
+    appendSummaryPart(out, out_len, &first, "hold off");
+  }
+  if (behavior.display_text[0] != '\0') {
+    char part[32];
+    snprintf(part, sizeof(part), "text %s", behavior.display_text);
+    appendSummaryPart(out, out_len, &first, part);
+  }
+  if (behavior.audio_file[0] != '\0') {
+    char part[40];
+    snprintf(part, sizeof(part), "audio %s", behavior.audio_file);
+    appendSummaryPart(out, out_len, &first, part);
   }
 }
 
@@ -182,7 +286,33 @@ void keyConfigFormatEntrySummary(const KeyConfigEntry& entry, char* out,
     return;
   }
 
-  char summary[48];
+  char summary[80];
   keyConfigFormatOverrideSummary(entry.behavior, summary, sizeof(summary));
   snprintf(out, out_len, "%s - %s", entry.name, summary);
+}
+
+void keyConfigAudioBasename(const KeyBehavior& behavior, char* out,
+                            size_t out_len) {
+  if (out == nullptr || out_len == 0) {
+    return;
+  }
+
+  out[0] = '\0';
+  if (behavior.audio_file[0] == '\0') {
+    return;
+  }
+
+  const char* name = behavior.audio_file;
+  const char* slash = strrchr(name, '/');
+  if (slash != nullptr && slash[1] != '\0') {
+    name = slash + 1;
+  }
+
+  strncpy(out, name, out_len - 1);
+  out[out_len - 1] = '\0';
+
+  const size_t len = strlen(out);
+  if (len >= 4 && equalsIgnoreCase(out + len - 4, ".wav")) {
+    out[len - 4] = '\0';
+  }
 }
