@@ -177,6 +177,14 @@ bool parseSettingToken(const char* token, KeyBehavior* behavior) {
     behavior->hold_enabled = enabled;
     return true;
   }
+  if (equalsIgnoreCase(key, "ignore")) {
+    bool ignored = false;
+    if (!parseOnOffValue(value, &ignored)) {
+      return false;
+    }
+    behavior->ignored = ignored;
+    return true;
+  }
   if (equalsIgnoreCase(key, "text")) {
     return copyBoundedValue(value, behavior->display_text,
                             sizeof(behavior->display_text));
@@ -246,7 +254,7 @@ bool keyConfigParseLine(const char* line, char* out_name, size_t out_name_len,
 }
 
 bool keyConfigHasOverrides(const KeyBehavior& behavior) {
-  return !behavior.echo_enabled || !behavior.hold_enabled ||
+  return behavior.ignored || !behavior.echo_enabled || !behavior.hold_enabled ||
          behavior.display_text[0] != '\0' || behavior.audio_file[0] != '\0';
 }
 
@@ -262,6 +270,9 @@ void keyConfigFormatOverrideSummary(const KeyBehavior& behavior, char* out,
   }
 
   bool first = true;
+  if (behavior.ignored) {
+    appendSummaryPart(out, out_len, &first, "ignore");
+  }
   if (!behavior.echo_enabled) {
     appendSummaryPart(out, out_len, &first, "echo off");
   }

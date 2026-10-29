@@ -102,6 +102,8 @@ bool usCharMapping(uint8_t key, bool shift, KeyLabel* out) {
       return applyCharMap({"backslash", "pipe", '\\', '|'}, shift, out);
     case 0x32:
       return applyCharMap({"hash", "tilde", '#', '~'}, shift, out);
+    case 0x64:
+      return applyCharMap({"backslash", "pipe", '\\', '|'}, shift, out);
     case 0x33:
       return applyCharMap({"single_quote", "double_quote", '\'', '"'}, shift, out);
     case 0x34:
@@ -253,7 +255,7 @@ const NamedKey kNamedKeys[] = {
     {0x61, "numpad_9", "Num9"},
     {0x62, "numpad_0", "Num0"},
     {0x63, "numpad_decimal", "Num."},
-    {0x64, "backslash", "\\"},
+    {0x64, "non_us_backslash", "\\"},
     {0x65, "menu", "Menu"},
     {0x67, "numpad_equals", "Num="},
     {0x68, "f13", "F13"},
@@ -314,7 +316,7 @@ const PhysicalKey kPhysicalKeys[] = {
     {0x5E, "numpad_6", "Num6"}, {0x5F, "numpad_7", "Num7"},
     {0x60, "numpad_8", "Num8"}, {0x61, "numpad_9", "Num9"},
     {0x62, "numpad_0", "Num0"}, {0x63, "numpad_decimal", "Num."},
-    {0x64, "backslash", "\\"},  {0x65, "menu", "Menu"},
+    {0x64, "non_us_backslash", "\\"},  {0x65, "menu", "Menu"},
     {0x67, "numpad_equals", "Num="},
     {0x68, "f13", "F13"},       {0x69, "f14", "F14"},
     {0x6A, "f15", "F15"},       {0x6B, "f16", "F16"},

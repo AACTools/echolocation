@@ -20,6 +20,7 @@ void uiSetHoldDurationMs(uint32_t ms);
 void uiSetBluetoothOutput(bool enabled);
 void uiSetBluetoothKeyboard(bool enabled);
 void uiSetShowKeyName(bool enabled);
+bool uiGetShowKeyName();
 
 void uiRefreshConnectionFlow();
 void uiRefreshBluetoothOutputStatus();

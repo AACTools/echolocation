@@ -198,6 +198,48 @@ void test_override_summary_echo_only(void) {
   TEST_ASSERT_EQUAL_STRING("echo off", summary);
 }
 
+void test_parse_ignore_true(void) {
+  char name[24];
+  KeyBehavior behavior;
+  TEST_ASSERT_TRUE(
+      keyConfigParseLine("caps_lock ignore=true", name, sizeof(name), &behavior));
+  TEST_ASSERT_EQUAL_STRING("caps_lock", name);
+  TEST_ASSERT_TRUE(behavior.ignored);
+  TEST_ASSERT_TRUE(behavior.echo_enabled);
+  TEST_ASSERT_TRUE(behavior.hold_enabled);
+}
+
+void test_parse_ignore_false_alone_is_not_an_override(void) {
+  char name[24];
+  KeyBehavior behavior;
+  TEST_ASSERT_FALSE(
+      keyConfigParseLine("caps_lock ignore=false", name, sizeof(name), &behavior));
+}
+
+void test_parse_ignore_with_other_settings(void) {
+  char name[24];
+  KeyBehavior behavior;
+  TEST_ASSERT_TRUE(keyConfigParseLine("space ignore=true echo=off", name,
+                                      sizeof(name), &behavior));
+  TEST_ASSERT_TRUE(behavior.ignored);
+  TEST_ASSERT_FALSE(behavior.echo_enabled);
+}
+
+void test_parse_rejects_bad_ignore_value(void) {
+  char name[24];
+  KeyBehavior behavior;
+  TEST_ASSERT_FALSE(
+      keyConfigParseLine("space ignore=maybe", name, sizeof(name), &behavior));
+}
+
+void test_override_summary_ignore(void) {
+  KeyBehavior behavior;
+  behavior.ignored = true;
+  char summary[48];
+  keyConfigFormatOverrideSummary(behavior, summary, sizeof(summary));
+  TEST_ASSERT_EQUAL_STRING("ignore", summary);
+}
+
 void test_entry_summary_uses_ascii_dash(void) {
   KeyConfigEntry entry;
   strncpy(entry.name, "arrow_down", sizeof(entry.name) - 1);
@@ -234,5 +276,10 @@ int main(int argc, char** argv) {
   RUN_TEST(test_audio_basename_strips_wav_suffix);
   RUN_TEST(test_audio_basename_accepts_name_without_extension);
   RUN_TEST(test_entry_summary_uses_ascii_dash);
+  RUN_TEST(test_parse_ignore_true);
+  RUN_TEST(test_parse_ignore_false_alone_is_not_an_override);
+  RUN_TEST(test_parse_ignore_with_other_settings);
+  RUN_TEST(test_parse_rejects_bad_ignore_value);
+  RUN_TEST(test_override_summary_ignore);
   return UNITY_END();
 }

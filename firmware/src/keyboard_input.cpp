@@ -9,6 +9,37 @@
 #include <Arduino.h>
 #include <string.h>
 
+static uint8_t modifiersForOutput(uint8_t mod) {
+  static const uint8_t kModifierBits[] = {0x01, 0x02, 0x04, 0x08,
+                                          0x10, 0x20, 0x40, 0x80};
+  uint8_t out = 0;
+  for (size_t i = 0; i < sizeof(kModifierBits); ++i) {
+    const uint8_t bit = kModifierBits[i];
+    if ((mod & bit) != 0 && !keyConfigForModifier(bit).ignored) {
+      out |= bit;
+    }
+  }
+  return out;
+}
+
+static void reportWithoutIgnoredKeys(const uint8_t input[8], uint8_t output[8]) {
+  memset(output, 0, 8);
+  output[0] = modifiersForOutput(input[0]);
+  output[1] = input[1];
+  uint8_t slot = 2;
+  for (uint8_t i = 2; i < 8 && slot < 8; ++i) {
+    const uint8_t key = input[i];
+    if (key == 0 || key == 1 || keyConfigForKey(key).ignored) {
+      continue;
+    }
+    output[slot++] = key;
+  }
+}
+
+static bool keyCountsInReport(uint8_t key) {
+  return key != 0 && key != 1 && !keyConfigForKey(key).ignored;
+}
+
 namespace {
 
 uint8_t displayed_key = 0;
@@ -44,7 +75,7 @@ void normalizeBootReport(const uint8_t* report, size_t len, uint8_t normalized[8
 uint8_t activeKeyCountInReport(const uint8_t report[8]) {
   uint8_t count = 0;
   for (uint8_t i = 2; i < 8; ++i) {
-    if (report[i] != 0 && report[i] != 1) {
+    if (keyCountsInReport(report[i])) {
       count++;
     }
   }
@@ -52,22 +83,26 @@ uint8_t activeKeyCountInReport(const uint8_t report[8]) {
 }
 
 bool onlyKeyInReport(const uint8_t report[8], uint8_t key) {
-  if (activeKeyCountInReport(report) != 1) {
-    return false;
-  }
+  bool found = false;
   for (uint8_t i = 2; i < 8; ++i) {
-    if (report[i] != 0 && report[i] != 1) {
-      return report[i] == key;
+    if (!keyCountsInReport(report[i])) {
+      continue;
     }
+    if (report[i] != key) {
+      return false;
+    }
+    found = true;
   }
-  return false;
+  return found;
 }
 
 void noteReportChanged(const uint8_t report[8]) {
-  if (memcmp(report, report_snapshot, 8) == 0) {
+  uint8_t significant[8] = {};
+  reportWithoutIgnoredKeys(report, significant);
+  if (memcmp(significant, report_snapshot, 8) == 0) {
     return;
   }
-  memcpy(report_snapshot, report, 8);
+  memcpy(report_snapshot, significant, 8);
   last_report_change_ms = millis();
 }
 
@@ -97,13 +132,13 @@ void playKeyAudio(const KeyBehavior& behavior, const char* default_token) {
 }
 
 void showPressedKey(const KeyLabel& label, const KeyBehavior& behavior, uint8_t key,
-                    uint8_t mod_bit) {
+                    uint8_t mod_bit, bool raw_label) {
   char config_name[24];
   if (!keyboardLayoutConfigName(key, mod_bit, config_name, sizeof(config_name))) {
     config_name[0] = '\0';
   }
-  uiSetPressedKey(displayTextForKey(label, behavior), behaviorForUi(behavior),
-                  config_name);
+  const char* text = raw_label ? label.display : displayTextForKey(label, behavior);
+  uiSetPressedKey(text, behaviorForUi(behavior), config_name);
 }
 
 void buildPassthroughReport(const uint8_t input[8], uint8_t output[8]) {
@@ -113,7 +148,11 @@ void buildPassthroughReport(const uint8_t input[8], uint8_t output[8]) {
                                           0x10, 0x20, 0x40, 0x80};
   for (size_t i = 0; i < sizeof(kModifierBits); ++i) {
     const uint8_t bit = kModifierBits[i];
-    if ((input[0] & bit) != 0 && !keyConfigForModifier(bit).hold_enabled) {
+    if ((input[0] & bit) == 0) {
+      continue;
+    }
+    const KeyBehavior behavior = keyConfigForModifier(bit);
+    if (!behavior.ignored && !behavior.hold_enabled) {
       output[0] |= bit;
     }
   }
@@ -124,7 +163,8 @@ void buildPassthroughReport(const uint8_t input[8], uint8_t output[8]) {
     if (key == 0 || key == 1) {
       continue;
     }
-    if (!keyConfigForKey(key).hold_enabled) {
+    const KeyBehavior behavior = keyConfigForKey(key);
+    if (!behavior.ignored && !behavior.hold_enabled) {
       output[slot++] = key;
     }
   }
@@ -151,7 +191,13 @@ void keyboardInputOnModifierChange(uint8_t old_mod, uint8_t new_mod) {
       KeyLabel label;
       if (keyboardLayoutResolveModifier(bit, &label)) {
         const KeyBehavior behavior = keyConfigForModifier(bit);
-        showPressedKey(label, behavior, 0, bit);
+        if (behavior.ignored) {
+          if (uiGetShowKeyName()) {
+            showPressedKey(label, behavior, 0, bit, true);
+          }
+          continue;
+        }
+        showPressedKey(label, behavior, 0, bit, false);
         playKeyAudio(behavior, label.speech_token);
       }
     }
@@ -189,9 +235,18 @@ void keyboardInputOnKeyDown(uint8_t mod, uint8_t key) {
   }
 
   const KeyBehavior behavior = keyConfigForKey(key);
+  if (behavior.ignored) {
+    if (uiGetShowKeyName()) {
+      displayed_key = key;
+      displayed_mod = mod;
+      showPressedKey(label, behavior, key, 0, true);
+    }
+    return;
+  }
+
   displayed_key = key;
   displayed_mod = mod;
-  showPressedKey(label, behavior, key, 0);
+  showPressedKey(label, behavior, key, 0, false);
 
   if (behavior.hold_enabled && (held_key != key || held_mod != mod)) {
     held_key = key;
@@ -261,7 +316,8 @@ void keyboardInputTick() {
   if (held_key == 0 || held_key != displayed_key || held_mod != displayed_mod) {
     return;
   }
-  if (!keyConfigForKey(held_key).hold_enabled) {
+  const KeyBehavior behavior = keyConfigForKey(held_key);
+  if (behavior.ignored || !behavior.hold_enabled) {
     return;
   }
   if (!onlyKeyInReport(current_report, held_key)) {
@@ -277,6 +333,6 @@ void keyboardInputTick() {
 
   key_sent_to_computer = true;
   uiSetKeySent(true);
-  computerOutputSendKey(held_mod, held_key);
+  computerOutputSendKey(modifiersForOutput(held_mod), held_key);
   syncPassthroughReport();
 }
