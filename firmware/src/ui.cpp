@@ -1838,6 +1838,8 @@ void uiSetBluetoothKeyboard(bool enabled) {
   refreshBluetoothKeyboardStatus();
 }
 
+bool uiGetShowKeyName() { return debug_overrides_enabled; }
+
 void uiSetShowKeyName(bool enabled) {
   debug_overrides_enabled = enabled;
   if (debug_overrides_switch != nullptr) {

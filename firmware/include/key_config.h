@@ -6,6 +6,7 @@
 struct KeyBehavior {
   bool echo_enabled = true;
   bool hold_enabled = true;
+  bool ignored = false;
   char display_text[24] = {};
   char audio_file[32] = {};
 };

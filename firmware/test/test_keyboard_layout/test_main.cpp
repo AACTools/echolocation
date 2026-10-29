@@ -105,6 +105,28 @@ void test_config_name_left_bracket(void) {
   TEST_ASSERT_EQUAL_STRING("left_bracket", name);
 }
 
+void test_backslash_names_round_trip(void) {
+  char name[24];
+  uint8_t key = 0;
+  uint8_t mod_bit = 0;
+
+  TEST_ASSERT_TRUE(keyboardLayoutConfigName(0x31, 0, name, sizeof(name)));
+  TEST_ASSERT_EQUAL_STRING("backslash", name);
+  TEST_ASSERT_TRUE(keyboardLayoutResolveToken(name, &key, &mod_bit));
+  TEST_ASSERT_EQUAL_UINT8(0x31, key);
+  TEST_ASSERT_EQUAL_UINT8(0, mod_bit);
+
+  TEST_ASSERT_TRUE(keyboardLayoutConfigName(0x64, 0, name, sizeof(name)));
+  TEST_ASSERT_EQUAL_STRING("non_us_backslash", name);
+  TEST_ASSERT_TRUE(keyboardLayoutResolveToken(name, &key, &mod_bit));
+  TEST_ASSERT_EQUAL_UINT8(0x64, key);
+  TEST_ASSERT_EQUAL_UINT8(0, mod_bit);
+
+  TEST_ASSERT_TRUE(keyboardLayoutResolveToken("key_0x31", &key, &mod_bit));
+  TEST_ASSERT_EQUAL_UINT8(0x31, key);
+  TEST_ASSERT_EQUAL_UINT8(0, mod_bit);
+}
+
 int main(int argc, char** argv) {
   (void)argc;
   (void)argv;
@@ -125,5 +147,6 @@ int main(int argc, char** argv) {
   RUN_TEST(test_config_name_digit_one);
   RUN_TEST(test_config_name_left_shift);
   RUN_TEST(test_config_name_left_bracket);
+  RUN_TEST(test_backslash_names_round_trip);
   return UNITY_END();
 }

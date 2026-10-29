@@ -55,18 +55,19 @@ Optional per-key behaviour overrides live at `/config/keys.txt`. Copy the exampl
 ```txt
 # echo: on|off  (default on)
 # hold: on|off  (default on; off = immediate relay to computer)
+# ignore: true|false (default false; true drops the key)
 # text: on-screen label (optional; quote values with spaces)
 # audio: WAV in /audio, with or without .wav (optional)
 
 space echo=off hold=off
 backspace hold=off text="Delete Letter" audio=delete_letter.wav
-hash hold=off text="Delete Word" audio=delete_word.wav
+key_0x31 hold=off text="Delete Word" audio=delete_word.wav
 enter hold=off text="Speak Message" audio=speak_message.wav
 right_shift hold=off text="Clear All" audio=clear_all.wav
 right_alt hold=off text="Home" audio=home.wav
 ```
 
-All parameters are optional. Key names match speech file tokens (`space`, `a`, `left_shift`, `arrow_up`, etc.). Labels with spaces must be quoted (`text="Delete Letter"`). Unlisted keys keep the default behaviour. View loaded overrides under Settings → **Key Overrides**. Turn on **Debug overrides** there (off by default) and press a key on the main screen to see the token to put in `keys.txt` above the key, and the yellow override summary below it. Hold-to-send keys show a green tick to the right of the key after they are sent. Both stay until another key is pressed.
+All parameters are optional. Key names match speech file tokens (`space`, `a`, `left_shift`, `arrow_up`, etc.). Labels with spaces must be quoted (`text="Delete Letter"`). `ignore=true` drops the key (no speech, no label, nothing sent); with Debug overrides on, that key is shown and still dropped. Unlisted keys keep the default behaviour. View loaded overrides under Settings → **Key Overrides**. Turn on **Debug overrides** there (off by default) and press a key on the main screen to see the token to put in `keys.txt` above the key, and the yellow override summary below it. Hold-to-send keys show a green tick to the right of the key after they are sent. Both stay until another key is pressed.
 
 Generate speech files with Piper TTS — see [scripts/generate-tts/README.md](../scripts/generate-tts/README.md). Run `npm run build-manifest` first, then `npm run generate`. Copy the `audio` folder to the root of the card, add `config/keys.txt` if needed, insert the card into the CoreS3 SD slot, and reboot.
 
